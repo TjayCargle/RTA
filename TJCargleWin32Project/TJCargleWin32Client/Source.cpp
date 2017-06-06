@@ -18,24 +18,13 @@ int main(void)
 	Mesh testMesh;
 	testMesh = functionExpert.getMeshFromFbx();
 
-	functionExpert.setupFbxImporter("../Mage_Idle.fbx");
-	functionExpert.importFbxscene("testScene");
-
-	Mesh testMesh2;
-	testMesh2 = functionExpert.getMeshFromFbx();
-
-	
-
 	testMesh = TJMatrix::ScaleMesh(testMesh, 0.003f);
 
 	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
-
 	testMesh = TJMatrix::TranslateMesh(testMesh, teddyTrans);
+	testMesh.name = "Teddy";
 
-	testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
-
-	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
-	testMesh2 = TJMatrix::TranslateMesh(testMesh2, mageTrans);
+	
 
 
 	//system("pause");
@@ -48,6 +37,18 @@ int main(void)
 	tempWorldMatrix.SetAsIdentiy();
 
 	AddMeshToVertexList(testMesh);
+	functionExpert.setupFbxImporter("../Mage_Idle.fbx");
+	functionExpert.importFbxscene("testScene");
+
+	Mesh testMesh2;
+
+	testMesh2 = functionExpert.getMeshFromFbx();
+	testMesh2.name = "Mage";
+
+	testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
+
+	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
+	testMesh2 = TJMatrix::TranslateMesh(testMesh2, mageTrans);
 	AddMeshToVertexList(testMesh2);
 
 	
@@ -107,11 +108,52 @@ int main(void)
 			tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(TJMatrix::CreateRoatation_Y(10), tempWorldMatrix);
 		}
 
+		if (GetAsyncKeyState(VK_SPACE))
+		{
+			functionExpert.setupFbxImporter("../Mage_Idle.fbx");
+			functionExpert.importFbxscene("testScene2");
 
+			Mesh testMesh2;
+			
+			testMesh2 = functionExpert.getMeshFromFbx();
+			testMesh2.name = "Mage";
 
+			testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
+
+			TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
+			testMesh2 = TJMatrix::TranslateMesh(testMesh2, mageTrans);
+			AddMeshToVertexList(testMesh2);
+		}
+
+		if (GetAsyncKeyState(VK_RETURN))
+		{
+			functionExpert.setupFbxImporter("../Teddy_Idle.fbx");
+			functionExpert.importFbxscene("testScene");
+
+			Mesh atestMesh;
+
+			atestMesh = functionExpert.getMeshFromFbx();
+			atestMesh.name = "Teddy";
+
+			atestMesh = TJMatrix::ScaleMesh(atestMesh, 0.003f);
+
+			TJMatrix teddytrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
+			atestMesh = TJMatrix::TranslateMesh(atestMesh, teddytrans);
+			AddMeshToVertexList(atestMesh);
+		}
+		if (GetAsyncKeyState(VK_ESCAPE))
+		{
+			RemoveMeshFromVertexList("Mage");
+		}
+		if (GetAsyncKeyState(VK_BACK))
+		{
+			RemoveMeshFromVertexList(0);
+		}
 		main_window.update();
 	}
+
 	main_window.destroy();
+	
 	functionExpert.ReleaseFBXPointers();
 	return 0;
 }

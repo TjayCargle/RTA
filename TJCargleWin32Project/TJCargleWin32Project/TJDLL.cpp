@@ -294,7 +294,7 @@ namespace TJDEV5LIB
 					//gloabalTransforms
 				returnMesh.bones.push_back(someJoint.pos);
 			}
-		
+	
 			return returnMesh;
 		}
 

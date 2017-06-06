@@ -177,6 +177,7 @@ struct Mesh
 	int vertexCount;
 	std::vector<unsigned int> indexBuffer;
 	std::vector<Point> bones;
+	std::string name = "yo";
 };
 
 class TJCube
