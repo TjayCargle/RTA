@@ -75,7 +75,7 @@ namespace fsgd
 		bool pump_events();
 
 		void update();
-
+		void UpdateMouse(float dt, float mx, float my);
 		bool is_focus()const;
 
 		bool move_window(int x, int y, int w, int h);

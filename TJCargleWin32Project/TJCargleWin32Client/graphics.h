@@ -45,7 +45,8 @@ namespace fsgd
 TJMatrix GetCamera();
 TJMatrix GetView();
 TJMatrix GetProj();
-
+std::vector<Mesh> GetMeshVertex();
+void AddMeshToVertexList(Mesh someMesh);
 void SetCamera(TJMatrix m);
 void SetView(TJMatrix m);
 void SetProj(TJMatrix m);

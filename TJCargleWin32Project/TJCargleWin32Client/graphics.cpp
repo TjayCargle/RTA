@@ -18,7 +18,20 @@ TJMatrix GetProj()
 {
 	return proj;
 }
-
+std::vector<Mesh> GetMeshVertex()
+{
+	return myMeshes;
+}
+void AddMeshToVertexList(Mesh someMesh)
+{
+	myMeshes.push_back(someMesh);
+	ID3D11Buffer * someBuffer;
+	ID3D11Buffer * someOtherBuffer;
+	ID3D11Buffer * boneBuffer;
+	otherVertexBuffer.push_back(someBuffer);
+	otherIndexBuffer.push_back(someOtherBuffer);
+	boneVertexBuffer.push_back(boneBuffer);
+}
 void SetCamera(TJMatrix m)
 {
 	camera = m;

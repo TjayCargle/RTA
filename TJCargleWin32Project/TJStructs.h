@@ -125,8 +125,9 @@ struct TJVertex
 	//Point translation = 0;
 	//Point rotation = 0;
 	//Point scale = 1;
-	//float u;
-	//float v;
+	Point normal;
+	float u;
+	float v;
 	TJColor color;
 
 	//TJVertex()
@@ -170,10 +171,12 @@ struct CubeFace
 	PTriangle FT2;
 };
 
-class Mesh
+struct Mesh
 {
 	std::vector<VTriangle> myTriangles;
-
+	int vertexCount;
+	std::vector<unsigned int> indexBuffer;
+	std::vector<Point> bones;
 };
 
 class TJCube
@@ -618,6 +621,58 @@ public:
 		return temp;
 	}
 
+	static Mesh ScaleMesh(Mesh m, float s)
+	{
+		for (int i = 0; i < m.myTriangles.size(); i++)
+		{
+			m.myTriangles[i].a.pos.x *= s;
+			m.myTriangles[i].a.pos.y *= s;
+			m.myTriangles[i].a.pos.z *= s;
+
+			m.myTriangles[i].b.pos.x *= s;
+			m.myTriangles[i].b.pos.y *= s;
+			m.myTriangles[i].b.pos.z *= s;
+
+			m.myTriangles[i].c.pos.x *= s;
+			m.myTriangles[i].c.pos.y *= s;
+			m.myTriangles[i].c.pos.z *= s;
+		}
+		for (int i = 0; i < m.bones.size(); i++)
+		{
+			m.bones[i].x *= s;
+			m.bones[i].y *= s;
+			m.bones[i].z *= s;
+		
+		}
+		return m;
+	}
+	static Mesh TranslateMesh(Mesh m, TJMatrix n)
+	{
+		for (int i = 0; i < m.myTriangles.size(); i++)
+		{
+			m.myTriangles[i].a = Vector_Matrix_Multiply(m.myTriangles[i].a, n);
+			m.myTriangles[i].b = Vector_Matrix_Multiply(m.myTriangles[i].b, n);
+			m.myTriangles[i].c = Vector_Matrix_Multiply(m.myTriangles[i].c, n);
+		}
+
+		for (int i = 0; i < m.bones.size(); i++)
+		{
+			TJVertex temp;
+			temp.pos.x = m.bones[i].x;
+			temp.pos.y = m.bones[i].y;
+			temp.pos.z = m.bones[i].z;
+			temp.pos.w = m.bones[i].w;
+
+			temp = Vector_Matrix_Multiply(temp, n);
+
+			m.bones[i].x = temp.pos.x;
+			m.bones[i].y = temp.pos.y;
+			m.bones[i].z = temp.pos.z;
+			m.bones[i].w = temp.pos.w;
+		}
+		return m;
+	}
+
 	static TJMatrix Matrix_Matrix_Multiply(TJMatrix m, TJMatrix n)
 	{
 		TJMatrix yo;
@@ -679,7 +734,8 @@ struct color4f
 	float b;
 	float a;
 };
-struct VERTEX 
-{ float x, y, z, w; 
-color4f color; 
+struct VERTEX
+{
+	float x, y, z, w;
+	color4f color;
 };
