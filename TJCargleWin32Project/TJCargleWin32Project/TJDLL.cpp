@@ -3,8 +3,9 @@
 #include <fbxsdk.h>
 struct my_fbx_joint
 {
-	FbxNode* node;
-	int parent_index;
+	int parent_index = -1;
+	FbxNode* node = nullptr;
+
 };
 struct joint
 {
@@ -242,9 +243,24 @@ namespace TJDEV5LIB
 			}
 			std::vector<my_fbx_joint> myFbxJoints;
 			FillVector_DepthFirtstTraversal(myFbxJoints, rootNode, rootNode->GetChildCount());
-			FbxVector4 currVertex;
 
-			std::vector<joint> gloabalTransforms;
+			
+			for (int i = 0; i < myFbxJoints.size(); i++)
+			{
+				FbxNode * parent = myFbxJoints[i].node->GetParent();
+				for (int k = 0; k < myFbxJoints.size(); k++)
+				{
+					if (parent == myFbxJoints[k].node)
+					{
+						myFbxJoints[i].parent_index = k;
+						break;
+					}
+				}
+		
+			}
+
+			
+
 			for (int i = 0; i < myFbxJoints.size(); i++)
 			{
 				joint someJoint;
@@ -273,6 +289,8 @@ namespace TJDEV5LIB
 				someJoint.pos.y = aMatrix.mData[3][1];
 				someJoint.pos.z = aMatrix.mData[3][2];
 				someJoint.pos.w = 1;
+				someJoint.parent_index = myFbxJoints[i].parent_index;
+				someJoint.pos.parentIndex = myFbxJoints[i].parent_index;
 					//gloabalTransforms
 				returnMesh.bones.push_back(someJoint.pos);
 			}

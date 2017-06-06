@@ -25,12 +25,14 @@ std::vector<Mesh> GetMeshVertex()
 void AddMeshToVertexList(Mesh someMesh)
 {
 	myMeshes.push_back(someMesh);
-	ID3D11Buffer * someBuffer;
-	ID3D11Buffer * someOtherBuffer;
-	ID3D11Buffer * boneBuffer;
+	ID3D11Buffer * someBuffer = nullptr;
+	ID3D11Buffer * someOtherBuffer = nullptr;
+	ID3D11Buffer * boneBuffer = nullptr;
+	ID3D11Buffer * jointBuffer = nullptr;
 	otherVertexBuffer.push_back(someBuffer);
 	otherIndexBuffer.push_back(someOtherBuffer);
 	boneVertexBuffer.push_back(boneBuffer);
+	jointVertexBuffer.push_back(jointBuffer);
 }
 void SetCamera(TJMatrix m)
 {

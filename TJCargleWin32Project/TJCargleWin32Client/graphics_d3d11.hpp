@@ -20,6 +20,7 @@ std::vector<VERTEX> gridVerts;
 std::vector<Mesh> myMeshes;
 std::vector<ID3D11Buffer *> otherVertexBuffer;
 std::vector<ID3D11Buffer *> boneVertexBuffer;
+std::vector<ID3D11Buffer *> jointVertexBuffer;
 std::vector<ID3D11Buffer *> otherIndexBuffer;
 namespace
 {
@@ -97,6 +98,7 @@ namespace fsgd
 		void UpdateGrid();
 		void UpdateMesh(Mesh someMesh, int bufferIndex);
 		void UpdateBones(Mesh someMesh, int bufferIndex);
+		void UpdateJoints(Mesh someMesh, int bufferIndex);
 		void initialize(window*);
 		void finalize();
 		context_t* get_context() { return &d3d11_context; }
@@ -556,8 +558,6 @@ namespace fsgd
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		dev->CreateBuffer(&bd, NULL, &default_vert_buffer);
-
 		D3D11_MAPPED_SUBRESOURCE ms;
 		d3d11_context->Map(default_vert_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, gridVerts.data(), sizeof(VERTEX) * gridVerts.size());
@@ -619,7 +619,8 @@ namespace fsgd
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		dev->CreateBuffer(&bd, NULL, &otherVertexBuffer[bufferIndex]);
+		if (otherVertexBuffer[bufferIndex] == nullptr)
+			dev->CreateBuffer(&bd, NULL, &otherVertexBuffer[bufferIndex]);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
 		d3d11_context->Map(otherVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
@@ -633,7 +634,8 @@ namespace fsgd
 		bd2.ByteWidth = sizeof(unsigned int) * someMesh.indexBuffer.size();
 		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
+		if (otherIndexBuffer[bufferIndex] == nullptr)
+			dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
 
 		D3D11_MAPPED_SUBRESOURCE ms2;
 		d3d11_context->Map(otherIndexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
@@ -652,23 +654,46 @@ namespace fsgd
 			if (count >= gridVerts.size())
 				break;
 			TJVertex temp;
-			temp.pos.x = someMesh.bones[i].x ;
-			temp.pos.y = someMesh.bones[i].y ;
-			temp.pos.z = someMesh.bones[i].z ;
-			temp.pos.w = someMesh.bones[i].w;
+			temp.pos.x = someMesh.bones[i].x;
+			temp.pos.y = someMesh.bones[i].y;
+			temp.pos.z = someMesh.bones[i].z;
+			temp.pos.w = 1;
 			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
 			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
 			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-			
-			VERTEX temp2;
-			temp2.color = bufferIndex == 0 ? magenta : cyan;
-			temp2.x = temp.pos.x;
-			temp2.y = temp.pos.y;
-			temp2.z = temp.pos.z;
-			temp2.w = temp.pos.w;
-			vertexVector.push_back(temp2);
+
+
+			TJVertex tjTemp2;
+			int pIndex = someMesh.bones[i].parentIndex;
+			if (pIndex != -1)
+			{
+
+				tjTemp2.pos.x = someMesh.bones[pIndex].x;
+				tjTemp2.pos.y = someMesh.bones[pIndex].y;
+				tjTemp2.pos.z = someMesh.bones[pIndex].z;
+				tjTemp2.pos.w = 1;
+				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, camera);
+				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, view);
+				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, proj);
+
+
+
+				VERTEX temp2;
+				temp2.color = bufferIndex == 0 ? yellow : white;
+				temp2.x = temp.pos.x;
+				temp2.y = temp.pos.y;
+				temp2.z = temp.pos.z;
+				temp2.w = temp.pos.w;
+				vertexVector.push_back(temp2);
+
+				temp2.x = tjTemp2.pos.x;
+				temp2.y = tjTemp2.pos.y;
+				temp2.z = tjTemp2.pos.z;
+				temp2.w = tjTemp2.pos.w;
+				vertexVector.push_back(temp2);
+			}
 		}
-		
+
 		D3D11_BUFFER_DESC bd;
 		ZeroMemory(&bd, sizeof(bd));
 
@@ -676,27 +701,99 @@ namespace fsgd
 		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-		dev->CreateBuffer(&bd, NULL, &boneVertexBuffer[bufferIndex]);
+		if (boneVertexBuffer[bufferIndex] == nullptr)
+			dev->CreateBuffer(&bd, NULL, &boneVertexBuffer[bufferIndex]);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
 		d3d11_context->Map(boneVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
 		d3d11_context->Unmap(boneVertexBuffer[bufferIndex], NULL);
 
-		/*D3D11_BUFFER_DESC bd2;
-		ZeroMemory(&bd2, sizeof(bd2));
 
-		bd2.Usage = D3D11_USAGE_DYNAMIC;
-		bd2.ByteWidth = sizeof(unsigned int) * someMesh.indexBuffer.size();
-		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
+	}
+	void d3d11_device_t::UpdateJoints(Mesh someMesh, int bufferIndex)
+	{
+		int count = 0;
 
-		D3D11_MAPPED_SUBRESOURCE ms2;
-		d3d11_context->Map(otherIndexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-		memcpy(ms2.pData, someMesh.indexBuffer.data(), sizeof(unsigned int) * someMesh.indexBuffer.size());
-		d3d11_context->Unmap(otherIndexBuffer[bufferIndex], NULL);*/
+		std::vector<VERTEX> vertexVector;
+
+		for (int i = 0; i < someMesh.bones.size(); i += 2)
+		{
+			if (count >= gridVerts.size())
+				break;
+			//if (i + 1 < someMesh.bones.size())
+			{
+				TJVertex tjTemp;
+				tjTemp.pos.x = someMesh.bones[i].x;
+				tjTemp.pos.y = someMesh.bones[i].y;
+				tjTemp.pos.z = someMesh.bones[i].z;
+				tjTemp.pos.w = 1;
+				tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, camera);
+				tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, view);
+				tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, proj);
+
+				TJVertex tjTempTrans;
+				tjTempTrans.pos.x = someMesh.bones[i].x + 0.04f;
+				tjTempTrans.pos.y = someMesh.bones[i].y + 0.05f;
+				tjTempTrans.pos.z = someMesh.bones[i].z + 0.03f;
+				tjTempTrans.pos.w = 1;
+				tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, camera);
+				tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, view);
+				tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, proj);
+
+	
+				VERTEX temp;
+		temp.color = red;
+		temp.x = tjTemp.pos.x;
+		temp.y = tjTemp.pos.y;
+		temp.z = tjTemp.pos.z;
+		temp.w = tjTemp.pos.w;
+		vertexVector.push_back(temp);
+		temp.x = tjTempTrans.pos.x;
+		vertexVector.push_back(temp);
+		
+		
+		temp.color = green;
+		temp.x = tjTemp.pos.x;
+		temp.y = tjTemp.pos.y;
+		temp.z = tjTemp.pos.z;
+		temp.w = tjTemp.pos.w;
+		vertexVector.push_back(temp);
+		temp.y = tjTempTrans.pos.y;
+		vertexVector.push_back(temp);
+
+
+				temp.color = blue;
+				temp.x = tjTemp.pos.x;
+				temp.y = tjTemp.pos.y;
+				temp.z = tjTemp.pos.z;
+				temp.w = tjTemp.pos.w;
+				vertexVector.push_back(temp);
+				temp.x = tjTempTrans.pos.x;
+				temp.y = tjTempTrans.pos.y;
+				temp.z = tjTempTrans.pos.z;
+				vertexVector.push_back(temp);
+
+				//x red y green z blue
+
+			}
+		}
+		D3D11_BUFFER_DESC bd;
+		ZeroMemory(&bd, sizeof(bd));
+
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		if (jointVertexBuffer[bufferIndex] == nullptr)
+			dev->CreateBuffer(&bd, NULL, &jointVertexBuffer[bufferIndex]);
+
+		D3D11_MAPPED_SUBRESOURCE ms;
+		d3d11_context->Map(jointVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
+		d3d11_context->Unmap(jointVertexBuffer[bufferIndex], NULL);
+
+
 
 	}
 }
@@ -745,12 +842,15 @@ namespace fsgd
 			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			devcon->IASetIndexBuffer(otherIndexBuffer[i], DXGI_FORMAT_R32_UINT, 0);
 			devcon->DrawIndexed(myMeshes[i].indexBuffer.size() * 4, 0, 0);
-			//devcon->Draw(;
+
 			fsgd::d3d11_device.UpdateBones(myMeshes[i], i);
 			devcon->IASetVertexBuffers(0, 1, &boneVertexBuffer[i], &stride, &offset);
 			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
-			devcon->IASetIndexBuffer(boneVertexBuffer[i], DXGI_FORMAT_R32_UINT, 0);
-			devcon->Draw(myMeshes[i].bones.size(), 0);
+			devcon->Draw(myMeshes[i].bones.size() * 2, 0);
+
+			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i);
+			devcon->IASetVertexBuffers(0, 1, &jointVertexBuffer[i], &stride, &offset);
+			devcon->Draw(myMeshes[i].bones.size() * 6, 0);
 		}
 		d3d11_device.swapchain->Present(1, 0);
 	}

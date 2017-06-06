@@ -7,7 +7,7 @@ struct Point
 	float y = 0;
 	float z = 0;
 	float w = 1;
-
+	int parentIndex = -1;
 	Point()
 	{
 		x = 0;

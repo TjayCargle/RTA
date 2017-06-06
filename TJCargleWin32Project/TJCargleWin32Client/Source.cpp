@@ -26,13 +26,13 @@ int main(void)
 
 	
 
-	testMesh = TJMatrix::ScaleMesh(testMesh, 0.002f);
+	testMesh = TJMatrix::ScaleMesh(testMesh, 0.003f);
 
 	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
 
 	testMesh = TJMatrix::TranslateMesh(testMesh, teddyTrans);
 
-	testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.08f);
+	testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
 
 	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
 	testMesh2 = TJMatrix::TranslateMesh(testMesh2, mageTrans);
