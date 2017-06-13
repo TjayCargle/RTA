@@ -20,7 +20,8 @@ namespace TJDEV5LIB
 		static TJCarg_DEV5_API void setFbxIORoot();
 		static TJCarg_DEV5_API bool setupFbxImporter(const char * filename);
 		static TJCarg_DEV5_API void importFbxscene(const char * sceneName);
-		static TJCarg_DEV5_API Mesh getMeshFromFbx();
+		static TJCarg_DEV5_API Mesh * getMeshFromFbx();
+		static TJCarg_DEV5_API Mesh * LoadMeshAnimationData(Mesh * targetMesh);
 		static TJCarg_DEV5_API void ReleaseFBXPointers();
 	private:
 

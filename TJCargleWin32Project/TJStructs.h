@@ -118,6 +118,59 @@ struct TJColor
 	float g;
 	float b;
 	float a;
+	float implicitLineEquation(Point A, Point B, Point Curr)
+	{
+		return ((A.y - B.y)*Curr.x + (B.x - A.x)*Curr.y + A.x*B.y - A.y*B.x);
+	}
+	float implicitLineEquation(Point A, Point B, float CX, float CY)
+	{
+		return ((A.y - B.y)*CX + (B.x - A.x)*CY + A.x*B.y - A.y*B.x);
+	}
+	float BLerp(float A, float a, float B, float b, float C, float y)
+	{
+		return (A * a) + (B * b) + (C * y);
+	}
+	void CreateFromUint(unsigned int aColor)
+	{
+		unsigned int tempColor = aColor;
+		// 0xBBGGRRAA
+		unsigned int AVal =     tempColor & 0xFF000000;
+		unsigned int RedVal =   tempColor & 0x00FF0000;
+		unsigned int GreenVal = tempColor & 0x0000FF00;
+		unsigned int BlueVal =  tempColor & 0x000000FF;
+		
+		AVal = (AVal >> 24);
+		RedVal = (RedVal >> 16);
+		GreenVal = (GreenVal >> 8);
+
+		a = AVal / 255.0f;
+		r = RedVal / 255.0f;
+		g = GreenVal / 255.0f;
+		b = BlueVal / 255.0f;
+
+	}
+	unsigned int BGRA2ARGB(unsigned int aColor)
+	{
+
+		unsigned int tempColor = aColor;
+		// 0xBBGGRRAA
+		unsigned int RedVal = tempColor & 0x0000FF00;
+		unsigned int BlueVal = tempColor & 0xFF000000;
+		unsigned int GreenVal = tempColor & 0x00FF0000;
+		unsigned int AVal = tempColor & 0x000000FF;
+		RedVal = (RedVal >> 8);
+		BlueVal = (BlueVal >> 24);
+		GreenVal = (GreenVal >> 16);
+		tempColor = 0;
+		tempColor = AVal;
+		tempColor = tempColor << 8;
+		tempColor |= RedVal;
+		tempColor = tempColor << 8;
+		tempColor |= GreenVal;
+		tempColor = tempColor << 8;
+		tempColor |= BlueVal;
+		return tempColor;
+	}
 };
 struct TJVertex
 {
@@ -169,15 +222,6 @@ struct CubeFace
 {
 	PTriangle FT1;
 	PTriangle FT2;
-};
-
-struct Mesh
-{
-	std::vector<VTriangle> myTriangles;
-	int vertexCount;
-	std::vector<unsigned int> indexBuffer;
-	std::vector<Point> bones;
-	std::string name = "yo";
 };
 
 class TJCube
@@ -404,6 +448,21 @@ struct PLight : Light
 {
 
 };
+struct AnimationClip;
+struct my_fbx_joint;
+struct Mesh
+{
+	std::vector<std::vector<VTriangle>> myTriangles;
+	int vertexCount;
+	std::vector<unsigned int> indexBuffer;
+	int boneVectorSize = 0;
+	std::vector<std::vector<Point>> bones;
+//	std::vector<Point> bones;
+	std::string name = "yo";
+	std::vector<my_fbx_joint*> fbxJoints;
+	AnimationClip * myClip;
+};
+
 class  TJMatrix
 {
 public:
@@ -624,52 +683,62 @@ public:
 
 	static Mesh ScaleMesh(Mesh m, float s)
 	{
-		for (int i = 0; i < m.myTriangles.size(); i++)
+		for (int j = 0; j < m.myTriangles.size(); j++)
 		{
-			m.myTriangles[i].a.pos.x *= s;
-			m.myTriangles[i].a.pos.y *= s;
-			m.myTriangles[i].a.pos.z *= s;
-
-			m.myTriangles[i].b.pos.x *= s;
-			m.myTriangles[i].b.pos.y *= s;
-			m.myTriangles[i].b.pos.z *= s;
-
-			m.myTriangles[i].c.pos.x *= s;
-			m.myTriangles[i].c.pos.y *= s;
-			m.myTriangles[i].c.pos.z *= s;
+			for (int i = 0; i < m.myTriangles[j].size(); i++)
+			{
+				m.myTriangles[j][i].a.pos.x *= s;
+				m.myTriangles[j][i].a.pos.y *= s;
+				m.myTriangles[j][i].a.pos.z *= s;
+				m.myTriangles[j][i].b.pos.x *= s;
+				m.myTriangles[j][i].b.pos.y *= s;
+				m.myTriangles[j][i].b.pos.z *= s;
+				m.myTriangles[j][i].c.pos.x *= s;
+				m.myTriangles[j][i].c.pos.y *= s;
+				m.myTriangles[j][i].c.pos.z *= s;
+			}
 		}
-		for (int i = 0; i < m.bones.size(); i++)
+		for (int j= 0; j < m.boneVectorSize; j++)
 		{
-			m.bones[i].x *= s;
-			m.bones[i].y *= s;
-			m.bones[i].z *= s;
-		
+			for (int i = 0; i < m.bones[j].size(); i++)
+			{
+				m.bones[j][i].x *= s;
+				m.bones[j][i].y *= s;
+				m.bones[j][i].z *= s;
+
+			}
 		}
+	
 		return m;
 	}
 	static Mesh TranslateMesh(Mesh m, TJMatrix n)
 	{
-		for (int i = 0; i < m.myTriangles.size(); i++)
+		for (int j = 0; j < m.myTriangles.size(); j++)
 		{
-			m.myTriangles[i].a = Vector_Matrix_Multiply(m.myTriangles[i].a, n);
-			m.myTriangles[i].b = Vector_Matrix_Multiply(m.myTriangles[i].b, n);
-			m.myTriangles[i].c = Vector_Matrix_Multiply(m.myTriangles[i].c, n);
+			for (int i = 0; i < m.myTriangles[j].size(); i++)
+			{
+				m.myTriangles[j][i].a = Vector_Matrix_Multiply(m.myTriangles[j][i].a, n);
+				m.myTriangles[j][i].b = Vector_Matrix_Multiply(m.myTriangles[j][i].b, n);
+				m.myTriangles[j][i].c = Vector_Matrix_Multiply(m.myTriangles[j][i].c, n);
+			}
 		}
-
-		for (int i = 0; i < m.bones.size(); i++)
+		for (int j = 0; j < m.boneVectorSize; j++)
 		{
-			TJVertex temp;
-			temp.pos.x = m.bones[i].x;
-			temp.pos.y = m.bones[i].y;
-			temp.pos.z = m.bones[i].z;
-			temp.pos.w = m.bones[i].w;
+			for (int i = 0; i < m.bones[j].size(); i++)
+			{
+				TJVertex temp;
+				temp.pos.x = m.bones[j][i].x;
+				temp.pos.y = m.bones[j][i].y;
+				temp.pos.z = m.bones[j][i].z;
+				temp.pos.w = m.bones[j][i].w;
 
-			temp = Vector_Matrix_Multiply(temp, n);
+				temp = Vector_Matrix_Multiply(temp, n);
 
-			m.bones[i].x = temp.pos.x;
-			m.bones[i].y = temp.pos.y;
-			m.bones[i].z = temp.pos.z;
-			m.bones[i].w = temp.pos.w;
+				m.bones[j][i].x = temp.pos.x;
+				m.bones[j][i].y = temp.pos.y;
+				m.bones[j][i].z = temp.pos.z;
+				m.bones[j][i].w = temp.pos.w;
+			}
 		}
 		return m;
 	}
@@ -693,9 +762,9 @@ public:
 		//	temp.translation = v.translation;
 		//	temp.rotation = temp.rotation;
 		//	temp.scale = v.scale;
-		//	temp.u = v.u;
-		//	temp.v = v.v;
-
+			temp.u = v.u;
+			temp.v = v.v;
+			temp.normal = v.normal;
 		temp.pos.x = m.e11 *v.pos.x + m.e21 * v.pos.y + m.e31 * v.pos.z + m.e41 * v.pos.w;
 		temp.pos.y = m.e12 *v.pos.x + m.e22 * v.pos.y + m.e32 * v.pos.z + m.e42 * v.pos.w;
 		temp.pos.z = m.e13 *v.pos.x + m.e23 * v.pos.y + m.e33 * v.pos.z + m.e43 * v.pos.w;
@@ -740,3 +809,15 @@ struct VERTEX
 	float x, y, z, w;
 	color4f color;
 };
+
+struct keyFrame
+{
+	double time;
+	std::vector<TJMatrix> frameMatrix;
+};
+struct AnimationClip
+{
+	double duration;
+	std::vector<keyFrame> frames;
+};
+

@@ -80,9 +80,9 @@ namespace TJDEV5LIB
 			theVector.push_back(somejoint);
 		}
 	}
-	Mesh Functions::getMeshFromFbx()
+	Mesh * Functions::getMeshFromFbx()
 	{
-		Mesh returnMesh;
+		Mesh * returnMesh = new Mesh();
 		int scenePoseCount = myFbxScene->GetPoseCount();
 		FbxPose * thePose = nullptr;
 		for (int i = 0; i < scenePoseCount; i++)
@@ -157,7 +157,7 @@ namespace TJDEV5LIB
 				}
 				std::vector<TJVertex> tjVerts;
 				std::vector<VTriangle> tjTriangles;
-				returnMesh.vertexCount = firstMesh->GetPolygonVertexCount();
+				returnMesh->vertexCount = firstMesh->GetPolygonVertexCount();
 
 				for (int ind = 0; ind < vertextCount; ind++)
 				{
@@ -214,20 +214,22 @@ namespace TJDEV5LIB
 					aTriangle.c = tjVerts[i + 2];
 					tjTriangles.push_back(aTriangle);
 				}
-				returnMesh.myTriangles = tjTriangles;
+				returnMesh->myTriangles.push_back(tjTriangles);
 				uint32_t indexCount = firstMesh->GetPolygonVertexCount();
 				uint32_t polygonCount = firstMesh->GetPolygonCount();
 				for (int i = 0; i < polygonCount; i++)
 				{
-					returnMesh.indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 0));
-					returnMesh.indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 1));
-					returnMesh.indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 2));
+					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 0));
+					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 1));
+					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 2));
 				}
 			}
+
 			FbxNode * rootNode = nullptr;
 			for (int i = 0; i < itemCount; i++)
 			{
 				FbxNode * tempNode = thePose->GetNode(i);
+
 				if (tempNode->GetSkeleton())
 				{
 					if (tempNode->GetSkeleton()->IsSkeletonRoot())
@@ -244,7 +246,7 @@ namespace TJDEV5LIB
 			std::vector<my_fbx_joint> myFbxJoints;
 			FillVector_DepthFirtstTraversal(myFbxJoints, rootNode, rootNode->GetChildCount());
 
-			
+
 			for (int i = 0; i < myFbxJoints.size(); i++)
 			{
 				FbxNode * parent = myFbxJoints[i].node->GetParent();
@@ -256,34 +258,34 @@ namespace TJDEV5LIB
 						break;
 					}
 				}
-		
+
 			}
 
-			
 
+			std::vector<Point> tempBones;
 			for (int i = 0; i < myFbxJoints.size(); i++)
 			{
 				joint someJoint;
 				FbxMatrix aMatrix = myFbxJoints[i].node->EvaluateGlobalTransform();
-				someJoint.myMatrix.e11 = aMatrix.mData[0][0];
-				someJoint.myMatrix.e12 = aMatrix.mData[0][1];
-				someJoint.myMatrix.e13 = aMatrix.mData[0][2];
-				someJoint.myMatrix.e14 = aMatrix.mData[0][3];
-
-				someJoint.myMatrix.e21 = aMatrix.mData[1][0];
-				someJoint.myMatrix.e22 = aMatrix.mData[1][1];
-				someJoint.myMatrix.e23 = aMatrix.mData[1][2];
-				someJoint.myMatrix.e24 = aMatrix.mData[1][3];
-
-				someJoint.myMatrix.e31 = aMatrix.mData[2][0];
-				someJoint.myMatrix.e32 = aMatrix.mData[2][1];
-				someJoint.myMatrix.e33 = aMatrix.mData[2][2];
-				someJoint.myMatrix.e34 = aMatrix.mData[2][3];
-
-				someJoint.myMatrix.e41 = aMatrix.mData[3][0];
-				someJoint.myMatrix.e42 = aMatrix.mData[3][1];
-				someJoint.myMatrix.e43 = aMatrix.mData[3][2];
-				someJoint.myMatrix.e44 = aMatrix.mData[3][3];
+				//someJoint.myMatrix.e11 = aMatrix.mData[0][0];
+				//someJoint.myMatrix.e12 = aMatrix.mData[0][1];
+				//someJoint.myMatrix.e13 = aMatrix.mData[0][2];
+				//someJoint.myMatrix.e14 = aMatrix.mData[0][3];
+				//
+				//someJoint.myMatrix.e21 = aMatrix.mData[1][0];
+				//someJoint.myMatrix.e22 = aMatrix.mData[1][1];
+				//someJoint.myMatrix.e23 = aMatrix.mData[1][2];
+				//someJoint.myMatrix.e24 = aMatrix.mData[1][3];
+				//
+				//someJoint.myMatrix.e31 = aMatrix.mData[2][0];
+				//someJoint.myMatrix.e32 = aMatrix.mData[2][1];
+				//someJoint.myMatrix.e33 = aMatrix.mData[2][2];
+				//someJoint.myMatrix.e34 = aMatrix.mData[2][3];
+				//
+				//someJoint.myMatrix.e41 = aMatrix.mData[3][0];
+				//someJoint.myMatrix.e42 = aMatrix.mData[3][1];
+				//someJoint.myMatrix.e43 = aMatrix.mData[3][2];
+				//someJoint.myMatrix.e44 = aMatrix.mData[3][3];
 
 				someJoint.pos.x = aMatrix.mData[3][0];
 				someJoint.pos.y = aMatrix.mData[3][1];
@@ -291,14 +293,95 @@ namespace TJDEV5LIB
 				someJoint.pos.w = 1;
 				someJoint.parent_index = myFbxJoints[i].parent_index;
 				someJoint.pos.parentIndex = myFbxJoints[i].parent_index;
-					//gloabalTransforms
-				returnMesh.bones.push_back(someJoint.pos);
+				//gloabalTransforms
+				tempBones.push_back(someJoint.pos);
+				my_fbx_joint * aJoint = &myFbxJoints[i];
+				returnMesh->fbxJoints.push_back(aJoint);
 			}
-	
-			return returnMesh;
+			returnMesh->bones.push_back(tempBones);
+			returnMesh->boneVectorSize++;
+
+
+			return LoadMeshAnimationData(returnMesh);
 		}
 
 
+	}
+	Mesh * Functions::LoadMeshAnimationData(Mesh * targetMesh)
+	{
+		FbxAnimStack * currentAnimStack = myFbxScene->GetCurrentAnimationStack();
+		FbxTimeSpan localTimeSpan = currentAnimStack->GetLocalTimeSpan();
+		FbxTime theDuration = localTimeSpan.GetDuration();
+		FbxLong frameCount = theDuration.GetFrameCount(FbxTime::EMode::eFrames24);
+		AnimationClip aCLip;
+		aCLip.duration = theDuration.GetSecondDouble();
+
+		int nbAnimLayers = currentAnimStack->GetMemberCount<FbxAnimLayer>();
+
+
+
+		for (int i = 1; i < frameCount; i++)
+		{
+			keyFrame aFrame;
+			//aFrame.frameMatrix[j]
+			FbxTime keyTime;
+			keyTime.SetFrame(i, theDuration.eFrames24);
+			aFrame.time = keyTime.GetSecondDouble();
+
+			std::vector<TJVertex> tjVerts;
+			std::vector<VTriangle> tjTriangles;
+			std::vector<Point> tempBones;
+			for (int k = 0; k < targetMesh->fbxJoints.size(); k++)
+			{
+				TJMatrix myMatrix;
+				FbxMatrix aMatrix = targetMesh->fbxJoints[k]->node->EvaluateGlobalTransform(keyTime);
+				myMatrix.e11 = aMatrix.mData[0][0];
+				myMatrix.e12 = aMatrix.mData[0][1];
+				myMatrix.e13 = aMatrix.mData[0][2];
+				myMatrix.e14 = aMatrix.mData[0][3];
+
+				myMatrix.e21 = aMatrix.mData[1][0];
+				myMatrix.e22 = aMatrix.mData[1][1];
+				myMatrix.e23 = aMatrix.mData[1][2];
+				myMatrix.e24 = aMatrix.mData[1][3];
+
+				myMatrix.e31 = aMatrix.mData[2][0];
+				myMatrix.e32 = aMatrix.mData[2][1];
+				myMatrix.e33 = aMatrix.mData[2][2];
+				myMatrix.e34 = aMatrix.mData[2][3];
+
+				myMatrix.e41 = aMatrix.mData[3][0];
+				myMatrix.e42 = aMatrix.mData[3][1];
+				myMatrix.e43 = aMatrix.mData[3][2];
+				myMatrix.e44 = aMatrix.mData[3][3];
+
+				aFrame.frameMatrix.push_back(myMatrix);
+				Point aPos;
+				aPos.x = aMatrix.mData[3][0];
+				aPos.y = aMatrix.mData[3][1];
+				aPos.z = aMatrix.mData[3][2];
+				aPos.w = 1;
+				aPos.parentIndex = targetMesh->fbxJoints[k]->parent_index;
+				tempBones.push_back(aPos);
+				TJVertex aVert;
+				aVert.pos = aPos;
+				tjVerts.push_back(aVert);
+
+				
+			}
+
+
+
+
+			targetMesh->bones.push_back(tempBones);
+			targetMesh->boneVectorSize++;
+
+
+
+			aCLip.frames.push_back(aFrame);
+			targetMesh->myClip = &aCLip;
+		}
+		return targetMesh;
 	}
 	void Functions::ReleaseFBXPointers()
 	{

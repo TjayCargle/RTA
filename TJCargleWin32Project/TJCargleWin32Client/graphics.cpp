@@ -33,6 +33,7 @@ void AddMeshToVertexList(Mesh someMesh)
 	otherIndexBuffer.push_back(someOtherBuffer);
 	boneVertexBuffer.push_back(boneBuffer);
 	jointVertexBuffer.push_back(jointBuffer);
+	myFrameNumbers.push_back(0);
 }
 void RemoveMeshFromVertexList(std::string name2Remove)
 {
@@ -48,6 +49,8 @@ void RemoveMeshFromVertexList(std::string name2Remove)
 				otherIndexBuffer.erase(otherIndexBuffer.begin() + i);
 
 				boneVertexBuffer.erase(boneVertexBuffer.begin() + i);
+
+				myFrameNumbers.erase(myFrameNumbers.begin() + i);
 
 				jointVertexBuffer.erase(jointVertexBuffer.begin() + i);
 			
@@ -70,6 +73,8 @@ void RemoveMeshFromVertexList(int index)
 
 			boneVertexBuffer.erase(boneVertexBuffer.begin() + i);
 
+			myFrameNumbers.erase(myFrameNumbers.begin() + i);
+
 			jointVertexBuffer.erase(jointVertexBuffer.begin() + i);
 
 			break;
@@ -88,7 +93,11 @@ void RemoveAllMeshFromVertexList()
 
 		boneVertexBuffer.erase(boneVertexBuffer.begin());
 
+		myFrameNumbers.erase(myFrameNumbers.begin());
+
 		jointVertexBuffer.erase(jointVertexBuffer.begin());
+
+	
 	}
 }
 void SetCamera(TJMatrix m)
@@ -104,4 +113,23 @@ void SetView(TJMatrix m)
 void SetProj(TJMatrix m)
 {
 	proj = m;
+}
+
+void SetAutoBool(bool setAuto)
+{
+	AutoAnimate = setAuto;
+}
+bool GetAutoBool()
+{
+	return AutoAnimate;
+}
+
+void SetFrameNum(int setFrame)
+{
+	SetAutoBool(false);
+	animationFrameNum = setFrame;
+}
+int GetFrameNum()
+{
+	return animationFrameNum;
 }

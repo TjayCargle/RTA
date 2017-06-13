@@ -48,5 +48,6 @@
   <ItemGroup>
     <None Include="..\Teddy_Idle.fbx" />
     <None Include="..\Mage_Idle.fbx" />
+    <None Include="..\Teddy_Run.fbx" />
   </ItemGroup>
 </Project>

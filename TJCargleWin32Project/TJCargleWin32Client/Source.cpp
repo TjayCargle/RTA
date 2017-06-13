@@ -1,4 +1,4 @@
-#include "TJDLL.h"
+#include "../TJCargleWin32Project/TJDLL.h"
 #include "window.h"
 #include <Windows.h>
 #include <iostream>
@@ -9,22 +9,36 @@ int main(void)
 	double a = 3;
 	double b = 4;
 	TJDEV5LIB::Functions functionExpert;
-	cout << "a + b = " <<
-		functionExpert.Add(a, b) << endl;
+	cout << "Controls:" << endl;
+	cout << "Arrow Keys - Move Up Down Left or Right:" << endl;
+	cout << "RShift and LShift, move forward or backward:" << endl;
+	cout << "CTRL keys rotate left and right:" << endl;
+	cout << "Right and Left mouse move up and down:" << endl;
+	cout << "Numpad 4-= Decreese Frame Number:" << endl;
+	cout << "Numpad 5-= Toggles  Animating to the object ir just steooin throught the sciooo:" << endl;
+	cout << "Numpad 6-= Increase Frame Number:" << endl;
+
+	bool autoRun = true;
+	int animationFrameNumber = 0;
+
 	functionExpert.SetupFbxManager();
 	functionExpert.setFbxIORoot();
-	functionExpert.setupFbxImporter("../Teddy_Idle.fbx");
+	functionExpert.setupFbxImporter("../Teddy_Run.fbx");
 	functionExpert.importFbxscene("testScene");
-	Mesh testMesh;
+	Mesh * testMesh;
 	testMesh = functionExpert.getMeshFromFbx();
-
-	testMesh = TJMatrix::ScaleMesh(testMesh, 0.003f);
+//	testMesh = functionExpert.LoadMeshAnimationData(testMesh);
+	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.003f);
 
 	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
-	testMesh = TJMatrix::TranslateMesh(testMesh, teddyTrans);
-	testMesh.name = "Teddy";
+	*testMesh = TJMatrix::TranslateMesh(*testMesh, teddyTrans);
+	testMesh->name = "Teddy";
 
-	
+	//TJColor testColor;
+	//testColor.CreateFromUint(0x800000);
+	//testColor.CreateFromUint(0xFF5733);
+	//testColor.CreateFromUint(0xFF00FFFF);
+	//testColor.CreateFromUint(0xFF0000FF);
 
 
 	//system("pause");
@@ -36,13 +50,13 @@ int main(void)
 	TJMatrix translationMatrix, tempRotationMatrix, tempWorldMatrix;
 	tempWorldMatrix.SetAsIdentiy();
 
-	AddMeshToVertexList(testMesh);
+	AddMeshToVertexList(*testMesh);
 	functionExpert.setupFbxImporter("../Mage_Idle.fbx");
 	functionExpert.importFbxscene("testScene");
 
 	Mesh testMesh2;
 
-	testMesh2 = functionExpert.getMeshFromFbx();
+	testMesh2 = *functionExpert.getMeshFromFbx();
 	testMesh2.name = "Mage";
 
 	testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
@@ -115,7 +129,7 @@ int main(void)
 
 			Mesh testMesh2;
 			
-			testMesh2 = functionExpert.getMeshFromFbx();
+			testMesh2 = *functionExpert.getMeshFromFbx();
 			testMesh2.name = "Mage";
 
 			testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
@@ -127,12 +141,12 @@ int main(void)
 
 		if (GetAsyncKeyState(VK_RETURN))
 		{
-			functionExpert.setupFbxImporter("../Teddy_Idle.fbx");
+			functionExpert.setupFbxImporter("../Teddy_Run.fbx");
 			functionExpert.importFbxscene("testScene");
 
 			Mesh atestMesh;
 
-			atestMesh = functionExpert.getMeshFromFbx();
+			atestMesh = *functionExpert.getMeshFromFbx();
 			atestMesh.name = "Teddy";
 
 			atestMesh = TJMatrix::ScaleMesh(atestMesh, 0.003f);
@@ -149,6 +163,35 @@ int main(void)
 		{
 			RemoveMeshFromVertexList(0);
 		}
+		animationFrameNumber = GetFrameNum();
+		autoRun = GetAutoBool();
+		if (GetAsyncKeyState(VK_NUMPAD4))
+		{
+			animationFrameNumber--;
+			SetFrameNum(animationFrameNumber);
+		}
+		if (GetAsyncKeyState(VK_NUMPAD5))
+		{
+			if(autoRun)
+			{
+				autoRun = false;
+				SetAutoBool(autoRun);
+			}
+			else
+			{
+				animationFrameNumber = 0;
+				SetFrameNum(animationFrameNumber);
+				autoRun = true;
+				SetAutoBool(autoRun);
+			}
+		}
+		if (GetAsyncKeyState(VK_NUMPAD6))
+		{
+			animationFrameNumber++;
+			SetFrameNum(animationFrameNumber);
+		}
+
+		
 		main_window.update();
 	}
 

@@ -53,3 +53,7 @@ void RemoveAllMeshFromVertexList();
 void SetCamera(TJMatrix m);
 void SetView(TJMatrix m);
 void SetProj(TJMatrix m);
+void SetAutoBool(bool setAuto);
+bool GetAutoBool();
+void SetFrameNum(int setFrame);
+int GetFrameNum();
