@@ -45,8 +45,8 @@ namespace fsgd
 TJMatrix GetCamera();
 TJMatrix GetView();
 TJMatrix GetProj();
-std::vector<Mesh> GetMeshVertex();
-void AddMeshToVertexList(Mesh someMesh);
+std::vector<Mesh*> GetMeshVertex();
+void AddMeshToVertexList(Mesh * someMesh);
 void RemoveMeshFromVertexList(std::string name2Remove);
 void RemoveMeshFromVertexList(int index);
 void RemoveAllMeshFromVertexList();

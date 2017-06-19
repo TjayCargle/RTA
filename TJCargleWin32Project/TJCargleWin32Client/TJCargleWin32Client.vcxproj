@@ -71,8 +71,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(IncludePath)</IncludePath>
-    <LibraryPath>$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\tjcar\Downloads\DirectXTK-master\DirectXTK-master;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.10586.0\shared;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.10586.0\winrt\wrl;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.10586.0\winrt;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.10586.0\ucrt;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.10586.0\um;C:\Program Files %28x86%29\Windows Kits\10\Include\10.0.10586.0\ucrt\sys;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10586.0\um\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -152,11 +152,13 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\DDSTextureLoader.cpp" />
     <ClCompile Include="graphics.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\DDSTextureLoader.h" />
     <ClInclude Include="..\TJStructs.h" />
     <ClInclude Include="d3d11_pipeline_desc.h" />
     <ClInclude Include="graphics.h" />
@@ -177,6 +179,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
     </None>
+    <None Include="shaders.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

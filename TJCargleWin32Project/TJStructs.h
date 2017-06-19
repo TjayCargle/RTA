@@ -808,8 +808,14 @@ struct VERTEX
 {
 	float x, y, z, w;
 	color4f color;
+	float u, v;
 };
-
+struct TJMVPBuffer
+{
+	TJMatrix tjModel;
+	TJMatrix tjView;
+	TJMatrix tjProj;
+};
 struct keyFrame
 {
 	double time;

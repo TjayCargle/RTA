@@ -1,7 +1,8 @@
 #pragma once
 #include "graphics.h"
+#include "../DDSTextureLoader.h"
 #include "window.h"
-#include "../Teddy_D.h"
+
 
 
 #include <d2d1_2.h>
@@ -11,7 +12,8 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
-VERTEX GPUSideVertexBuffer[1024];
+ID3D11Buffer * GPUSideVertexBuffer = nullptr;
+ID3D11Buffer * GPUSideIndexBuffer = nullptr;
 TJMatrix camera;
 TJMatrix view;
 TJMatrix proj;
@@ -19,11 +21,8 @@ int gridVertCount;
 bool AutoAnimate = true;
 int animationFrameNum = 0;
 std::vector<VERTEX> gridVerts;
-std::vector<Mesh> myMeshes;
-std::vector<ID3D11Buffer *> otherVertexBuffer;
-std::vector<ID3D11Buffer *> boneVertexBuffer;
-std::vector<ID3D11Buffer *> jointVertexBuffer;
-std::vector<ID3D11Buffer *> otherIndexBuffer;
+std::vector<Mesh *> myMeshes;
+
 std::vector<int> myFrameNumbers;
 namespace
 {
@@ -58,7 +57,7 @@ namespace fsgd
 
 			ID3D11DeviceContext* operator->() { return devcon; }
 
-			virtual void finalize() { devcon->Release(); }
+			virtual void finalize() {	devcon->Release();}
 
 		};
 
@@ -96,15 +95,17 @@ namespace fsgd
 		ID3D11Device *dev;
 		IDXGISwapChain *swapchain;
 		ID3D11Buffer *default_vert_buffer;
-
+		ID3D11Texture2D	*	m_texture2d;
+		ID3D11ShaderResourceView *	m_shaderView;
+		ID3D11SamplerState *		m_sampleState;
 		d3d11_context_t d3d11_context;
 	public:
 
 		void UpdateGrid();
-		void UpdateMesh(Mesh someMesh, int bufferIndex, int frameNumber);
-		void UpdateTexture(Mesh someMesh, int bufferIndex, int frameNumber);
-		void UpdateBones(Mesh someMesh, int bufferIndex, int frameNumber);
-		void UpdateJoints(Mesh someMesh, int bufferIndex, int frameNumber);
+		void UpdateMesh(Mesh * someMesh, int bufferIndex, int frameNumber);
+		void UpdateTexture(Mesh * someMesh, int bufferIndex, int frameNumber);
+		void UpdateBones(Mesh *someMesh, int bufferIndex, int frameNumber);
+		void UpdateJoints(Mesh * someMesh, int bufferIndex, int frameNumber);
 		void initialize(window*);
 		void finalize();
 		context_t* get_context() { return &d3d11_context; }
@@ -325,6 +326,8 @@ namespace fsgd
 		d3d11_context.finalize();
 		dev->Release();
 		swapchain->Release();
+		GPUSideVertexBuffer->Release();
+	
 	}
 
 	void d3d11_device_t::init_shaders_and_input_layout()
@@ -593,57 +596,57 @@ namespace fsgd
 
 	}
 
-	void d3d11_device_t::UpdateMesh(Mesh someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateMesh(Mesh * someMesh, int bufferIndex, int frameNumber)
 	{
 		int count = 0;
-		std::vector<std::vector<VTriangle>> itsTriangles = someMesh.myTriangles;
+		std::vector<std::vector<VTriangle>> itsTriangles = someMesh->myTriangles;
 		std::vector<VERTEX> vertexVector;
 		int j = 0;
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
+		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
 		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
+			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
 			{
 				if (count >= gridVerts.size())
 					break;
 
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, camera);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, view);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, proj);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, camera);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, view);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, proj);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, camera);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, view);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, proj);
+				itsTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].a, camera);
+				itsTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].a, view);
+				itsTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].a, proj);
+				itsTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].b, camera);
+				itsTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].b, view);
+				itsTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].b, proj);
+				itsTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].c, camera);
+				itsTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].c, view);
+				itsTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].c, proj);
 
 
 			}
 		}
 
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
+		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
 		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
+			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
 			{
 				VERTEX temp;
 				temp.color = bufferIndex == 0 ? white : yellow;
 
 
-				temp.x = someMesh.myTriangles[j][i].a.pos.x;
-				temp.y = someMesh.myTriangles[j][i].a.pos.y;
-				temp.z = someMesh.myTriangles[j][i].a.pos.z;
-				temp.w = someMesh.myTriangles[j][i].a.pos.w;
+				temp.x =itsTriangles[j][i].a.pos.x;
+				temp.y =itsTriangles[j][i].a.pos.y;
+				temp.z =itsTriangles[j][i].a.pos.z;
+				temp.w =itsTriangles[j][i].a.pos.w;
 				vertexVector.push_back(temp);
 
-				temp.x = someMesh.myTriangles[j][i].b.pos.x;
-				temp.y = someMesh.myTriangles[j][i].b.pos.y;
-				temp.z = someMesh.myTriangles[j][i].b.pos.z;
-				temp.w = someMesh.myTriangles[j][i].b.pos.w;
+				temp.x = itsTriangles[j][i].b.pos.x;
+				temp.y = itsTriangles[j][i].b.pos.y;
+				temp.z = itsTriangles[j][i].b.pos.z;
+				temp.w = itsTriangles[j][i].b.pos.w;
 				vertexVector.push_back(temp);
 
-				temp.x = someMesh.myTriangles[j][i].c.pos.x;
-				temp.y = someMesh.myTriangles[j][i].c.pos.y;
-				temp.z = someMesh.myTriangles[j][i].c.pos.z;
-				temp.w = someMesh.myTriangles[j][i].c.pos.w;
+				temp.x =itsTriangles[j][i].c.pos.x;
+				temp.y =itsTriangles[j][i].c.pos.y;
+				temp.z =itsTriangles[j][i].c.pos.z;
+				temp.w =itsTriangles[j][i].c.pos.w;
 				vertexVector.push_back(temp);
 
 			}
@@ -656,140 +659,138 @@ namespace fsgd
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		if (otherVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &otherVertexBuffer[bufferIndex]);
+		//if (GPUSideVertexBuffer == nullptr)
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(otherVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(otherVertexBuffer[bufferIndex], NULL);
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
 
 		D3D11_BUFFER_DESC bd2;
 		ZeroMemory(&bd2, sizeof(bd2));
 
 		bd2.Usage = D3D11_USAGE_DYNAMIC;
-		bd2.ByteWidth = sizeof(unsigned int) * someMesh.indexBuffer.size();
+		bd2.ByteWidth = sizeof(unsigned int) * someMesh->indexBuffer.size();
 		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (otherIndexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
+		//if (GPUSideIndexBuffer == nullptr)
+			dev->CreateBuffer(&bd2, NULL, &GPUSideIndexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms2;
-		d3d11_context->Map(otherIndexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-		memcpy(ms2.pData, someMesh.indexBuffer.data(), sizeof(unsigned int) * someMesh.indexBuffer.size());
-		d3d11_context->Unmap(otherIndexBuffer[bufferIndex], NULL);
+		d3d11_context->Map(GPUSideIndexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
+		memcpy(ms2.pData, someMesh->indexBuffer.data(), sizeof(unsigned int) * someMesh->indexBuffer.size());
+		d3d11_context->Unmap(GPUSideIndexBuffer, NULL);
 
 	}
-	void d3d11_device_t::UpdateTexture(Mesh someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateTexture(Mesh * someMesh, int bufferIndex, int frameNumber)
 	{
 		int count = 0;
-		std::vector<std::vector<VTriangle>> itsTriangles = someMesh.myTriangles;
+		std::vector<std::vector<VTriangle>> itsTriangles = someMesh->myTriangles;
 		std::vector<VERTEX> vertexVector;
 		int j = 0;
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
+		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
 		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
+			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
 			{
 				if (count >= gridVerts.size())
 					break;
 
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, camera);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, view);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, proj);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, camera);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, view);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, proj);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, camera);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, view);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, proj);
+				someMesh->myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].a, camera);
+				someMesh->myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].a, view);
+				someMesh->myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].a, proj);
+				someMesh->myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].b, camera);
+				someMesh->myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].b, view);
+				someMesh->myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].b, proj);
+				someMesh->myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].c, camera);
+				someMesh->myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].c, view);
+				someMesh->myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh->myTriangles[j][i].c, proj);
 
 
 			}
 		}
 
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
+		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
 		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
+			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
 			{
 				VERTEX temp;
 				temp.color = bufferIndex == 0 ? white : yellow;
-				if (someMesh.name == "Teddy")
+				if (someMesh->name == "Teddy")
 				{
 					TJColor tjtemp;
-					const unsigned int * teddyPixels = Teddy_D_pixels;
-					TJVertex A = someMesh.myTriangles[j][i].a;
-					TJVertex B = someMesh.myTriangles[j][i].b;
-					TJVertex C = someMesh.myTriangles[j][i].c;
+					//const unsigned int * teddyPixels;// = Teddy_D_pixels;
+					TJVertex A = someMesh->myTriangles[j][i].a;
+					TJVertex B = someMesh->myTriangles[j][i].b;
+					TJVertex C = someMesh->myTriangles[j][i].c;
 
 
-					float x = A.u * Teddy_D_width;
-					float width = Teddy_D_width;
-					float y = A.v * Teddy_D_height;
+					float x = A.u *500;
+					float width = 500;
+					float y = A.v *500;
 					int finalColor = y * width + x;
 
-					tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
+					//tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
 					temp.color.r = tjtemp.r;
 					temp.color.g = tjtemp.g;
 					temp.color.b = tjtemp.b;
 					temp.color.a = tjtemp.a;
 
-					temp.x = someMesh.myTriangles[j][i].a.pos.x;
-					temp.y = someMesh.myTriangles[j][i].a.pos.y;
-					temp.z = someMesh.myTriangles[j][i].a.pos.z;
-					temp.w = someMesh.myTriangles[j][i].a.pos.w;
+					temp.x = someMesh->myTriangles[j][i].a.pos.x;
+					temp.y = someMesh->myTriangles[j][i].a.pos.y;
+					temp.z = someMesh->myTriangles[j][i].a.pos.z;
+					temp.w = someMesh->myTriangles[j][i].a.pos.w;
 					vertexVector.push_back(temp);
 
 
-					x = B.u * Teddy_D_width;
-					y = B.v * Teddy_D_height;
+					
 					finalColor = y * width + x;
-					tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
+					//tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
 
 					temp.color.r = tjtemp.r;
 					temp.color.g = tjtemp.g;
 					temp.color.b = tjtemp.b;
 					temp.color.a = tjtemp.a;
 
-					temp.x = someMesh.myTriangles[j][i].b.pos.x;
-					temp.y = someMesh.myTriangles[j][i].b.pos.y;
-					temp.z = someMesh.myTriangles[j][i].b.pos.z;
-					temp.w = someMesh.myTriangles[j][i].b.pos.w;
+					temp.x = someMesh->myTriangles[j][i].b.pos.x;
+					temp.y = someMesh->myTriangles[j][i].b.pos.y;
+					temp.z = someMesh->myTriangles[j][i].b.pos.z;
+					temp.w = someMesh->myTriangles[j][i].b.pos.w;
 					vertexVector.push_back(temp);
 
-					x = C.u * Teddy_D_width;
-					y = C.v * Teddy_D_height;
+					
 					finalColor = y * width + x;
-					tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
+					//tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
 
 					temp.color.r = tjtemp.r;
 					temp.color.g = tjtemp.g;
 					temp.color.b = tjtemp.b;
 					temp.color.a = tjtemp.a;
 
-					temp.x = someMesh.myTriangles[j][i].c.pos.x;
-					temp.y = someMesh.myTriangles[j][i].c.pos.y;
-					temp.z = someMesh.myTriangles[j][i].c.pos.z;
-					temp.w = someMesh.myTriangles[j][i].c.pos.w;
+					temp.x = someMesh->myTriangles[j][i].c.pos.x;
+					temp.y = someMesh->myTriangles[j][i].c.pos.y;
+					temp.z = someMesh->myTriangles[j][i].c.pos.z;
+					temp.w = someMesh->myTriangles[j][i].c.pos.w;
 					vertexVector.push_back(temp);
 				}
 				else
 				{
-					temp.x = someMesh.myTriangles[j][i].a.pos.x;
-					temp.y = someMesh.myTriangles[j][i].a.pos.y;
-					temp.z = someMesh.myTriangles[j][i].a.pos.z;
-					temp.w = someMesh.myTriangles[j][i].a.pos.w;
+					temp.x = someMesh->myTriangles[j][i].a.pos.x;
+					temp.y = someMesh->myTriangles[j][i].a.pos.y;
+					temp.z = someMesh->myTriangles[j][i].a.pos.z;
+					temp.w = someMesh->myTriangles[j][i].a.pos.w;
 					vertexVector.push_back(temp);
 
-					temp.x = someMesh.myTriangles[j][i].b.pos.x;
-					temp.y = someMesh.myTriangles[j][i].b.pos.y;
-					temp.z = someMesh.myTriangles[j][i].b.pos.z;
-					temp.w = someMesh.myTriangles[j][i].b.pos.w;
+					temp.x = someMesh->myTriangles[j][i].b.pos.x;
+					temp.y = someMesh->myTriangles[j][i].b.pos.y;
+					temp.z = someMesh->myTriangles[j][i].b.pos.z;
+					temp.w = someMesh->myTriangles[j][i].b.pos.w;
 					vertexVector.push_back(temp);
 
-					temp.x = someMesh.myTriangles[j][i].c.pos.x;
-					temp.y = someMesh.myTriangles[j][i].c.pos.y;
-					temp.z = someMesh.myTriangles[j][i].c.pos.z;
-					temp.w = someMesh.myTriangles[j][i].c.pos.w;
+					temp.x = someMesh->myTriangles[j][i].c.pos.x;
+					temp.y = someMesh->myTriangles[j][i].c.pos.y;
+					temp.z = someMesh->myTriangles[j][i].c.pos.z;
+					temp.w = someMesh->myTriangles[j][i].c.pos.w;
 					vertexVector.push_back(temp);
 				}
 			}
@@ -802,48 +803,52 @@ namespace fsgd
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		if (otherVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &otherVertexBuffer[bufferIndex]);
+		//if (GPUSideVertexBuffer == nullptr)
+		{
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
+			HRESULT result;
+			result = CreateDDSTextureFromFile(dev, L"../Teddy_D.dds", (ID3D11Resource**) m_texture2d, &m_shaderView);
 
+		}
 		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(otherVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(otherVertexBuffer[bufferIndex], NULL);
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
 
 		D3D11_BUFFER_DESC bd2;
 		ZeroMemory(&bd2, sizeof(bd2));
 
 		bd2.Usage = D3D11_USAGE_DYNAMIC;
-		bd2.ByteWidth = sizeof(unsigned int) * someMesh.indexBuffer.size();
+		bd2.ByteWidth = sizeof(unsigned int) * someMesh->indexBuffer.size();
 		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (otherIndexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
+	//	if (GPUSideIndexBuffer == nullptr)
+			dev->CreateBuffer(&bd2, NULL, &GPUSideIndexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms2;
-		d3d11_context->Map(otherIndexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-		memcpy(ms2.pData, someMesh.indexBuffer.data(), sizeof(unsigned int) * someMesh.indexBuffer.size());
-		d3d11_context->Unmap(otherIndexBuffer[bufferIndex], NULL);
+		d3d11_context->Map(GPUSideIndexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
+		memcpy(ms2.pData, someMesh->indexBuffer.data(), sizeof(unsigned int) * someMesh->indexBuffer.size());
+		d3d11_context->Unmap(GPUSideIndexBuffer, NULL);
 
 	}
 
-	void d3d11_device_t::UpdateBones(Mesh someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateBones(Mesh * someMesh, int bufferIndex, int frameNumber)
 	{
 		int count = 0;
 
 		std::vector<VERTEX> vertexVector;
-		//for (int j = 0; j < someMesh.boneVectorSize; j++)
+		//for (int j = 0; j < someMesh->boneVectorSize; j++)
 		//{
 		int j = frameNumber;
-		for (int i = 0; i < someMesh.bones[j].size(); i++)
+		for (int i = 0; i < someMesh->bones[j].size(); i++)
 		{
 			if (count >= gridVerts.size())
 				break;
 
 			TJVertex temp;
-			temp.pos.x = someMesh.bones[j][i].x;
-			temp.pos.y = someMesh.bones[j][i].y;
-			temp.pos.z = someMesh.bones[j][i].z;
+			temp.pos.x = someMesh->bones[j][i].x;
+			temp.pos.y = someMesh->bones[j][i].y;
+			temp.pos.z = someMesh->bones[j][i].z;
 			temp.pos.w = 1;
 			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
 			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
@@ -851,13 +856,13 @@ namespace fsgd
 
 
 			TJVertex tjTemp2;
-			int pIndex = someMesh.bones[j][i].parentIndex;
+			int pIndex = someMesh->bones[j][i].parentIndex;
 			if (pIndex != -1)
 			{
 
-				tjTemp2.pos.x = someMesh.bones[j][pIndex].x;
-				tjTemp2.pos.y = someMesh.bones[j][pIndex].y;
-				tjTemp2.pos.z = someMesh.bones[j][pIndex].z;
+				tjTemp2.pos.x = someMesh->bones[j][pIndex].x;
+				tjTemp2.pos.y = someMesh->bones[j][pIndex].y;
+				tjTemp2.pos.z = someMesh->bones[j][pIndex].z;
 				tjTemp2.pos.w = 1;
 				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, camera);
 				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, view);
@@ -889,43 +894,43 @@ namespace fsgd
 		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (boneVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &boneVertexBuffer[bufferIndex]);
+		//if (GPUSideVertexBuffer == nullptr)
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(boneVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(boneVertexBuffer[bufferIndex], NULL);
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
 
 
 	}
-	void d3d11_device_t::UpdateJoints(Mesh someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateJoints(Mesh * someMesh, int bufferIndex, int frameNumber)
 	{
 		int count = 0;
 
 		std::vector<VERTEX> vertexVector;
 		int j = frameNumber;
-		//	for (int j = 0; j < someMesh.boneVectorSize; j++)
+		//	for (int j = 0; j < someMesh->boneVectorSize; j++)
 		{
-			for (int i = 0; i < someMesh.bones[j].size(); i += 2)
+			for (int i = 0; i < someMesh->bones[j].size(); i += 2)
 			{
 				if (count >= gridVerts.size())
 					break;
-				//if (i + 1 < someMesh.bones.size())
+				//if (i + 1 < someMesh->bones.size())
 				{
 					TJVertex tjTemp;
-					tjTemp.pos.x = someMesh.bones[j][i].x;
-					tjTemp.pos.y = someMesh.bones[j][i].y;
-					tjTemp.pos.z = someMesh.bones[j][i].z;
+					tjTemp.pos.x = someMesh->bones[j][i].x;
+					tjTemp.pos.y = someMesh->bones[j][i].y;
+					tjTemp.pos.z = someMesh->bones[j][i].z;
 					tjTemp.pos.w = 1;
 					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, camera);
 					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, view);
 					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, proj);
 
 					TJVertex tjTempTrans;
-					tjTempTrans.pos.x = someMesh.bones[j][i].x + 0.04f;
-					tjTempTrans.pos.y = someMesh.bones[j][i].y + 0.05f;
-					tjTempTrans.pos.z = someMesh.bones[j][i].z + 0.03f;
+					tjTempTrans.pos.x = someMesh->bones[j][i].x + 0.04f;
+					tjTempTrans.pos.y = someMesh->bones[j][i].y + 0.05f;
+					tjTempTrans.pos.z = someMesh->bones[j][i].z + 0.03f;
 					tjTempTrans.pos.w = 1;
 					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, camera);
 					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, view);
@@ -976,13 +981,13 @@ namespace fsgd
 		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (jointVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &jointVertexBuffer[bufferIndex]);
+		//if (GPUSideVertexBuffer == nullptr)
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(jointVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(jointVertexBuffer[bufferIndex], NULL);
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
 
 
 
@@ -1042,10 +1047,10 @@ namespace fsgd
 		
 			fsgd::d3d11_device.UpdateMesh(myMeshes[i], i, myFrameNumbers[i]);
 
-			devcon->IASetVertexBuffers(0, 1, &otherVertexBuffer[i], &stride, &offset);
+			devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
 			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			devcon->IASetIndexBuffer(otherIndexBuffer[i], DXGI_FORMAT_R32_UINT, 0);
-			devcon->DrawIndexed(myMeshes[i].indexBuffer.size() * 4, 0, 0);
+			devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			devcon->DrawIndexed(myMeshes[i]->indexBuffer.size() * 4, 0, 0);
 
 			if (AutoAnimate)
 			{
@@ -1053,17 +1058,18 @@ namespace fsgd
 			}
 			else
 			{
-				if (animationFrameNum >= myMeshes[i].bones.size())
+				if (animationFrameNum >= myMeshes[i]->bones.size())
 					animationFrameNum = 0;
 				if (animationFrameNum < 0)
-					animationFrameNum = myMeshes[i].bones.size() -1;
+					animationFrameNum = myMeshes[i]->bones.size() -1;
 				fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum);
 			}
 
-			devcon->IASetVertexBuffers(0, 1, &boneVertexBuffer[i], &stride, &offset);
+			devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
 			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
-			for (int j = 0; j < myMeshes[i].boneVectorSize; j++)
-				devcon->Draw(myMeshes[i].bones[j].size() * 2, 0);
+			devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
+				devcon->Draw(myMeshes[i]->bones[j].size() * 2, 0);
 
 		
 			if (AutoAnimate)
@@ -1072,22 +1078,23 @@ namespace fsgd
 			}
 			else
 			{
-				if (animationFrameNum >= myMeshes[i].bones.size())
+				if (animationFrameNum >= myMeshes[i]->bones.size())
 					animationFrameNum = 0;
 				if (animationFrameNum < 0)
-					animationFrameNum = myMeshes[i].bones.size() - 1;
+					animationFrameNum = myMeshes[i]->bones.size() - 1;
 				fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum);
 			}
 			
-			devcon->IASetVertexBuffers(0, 1, &jointVertexBuffer[i], &stride, &offset);
-			for (int j = 0; j < myMeshes[i].boneVectorSize; j++)
-				devcon->Draw(myMeshes[i].bones[j].size() * 6, 0);
+			devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+			devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
+				devcon->Draw(myMeshes[i]->bones[j].size() * 6, 0);
 
 			myFrameNumbers[i]++;
-			if (myFrameNumbers[i] >= myMeshes[i].bones.size())
-				myFrameNumbers[i] = 0;
+			if (myFrameNumbers[i] >= myMeshes[i]->bones.size())
+				myFrameNumbers[i] = 1;
 	
-			fsgd::d3d11_device.UpdateTexture(myMeshes[i], i, myFrameNumbers[i]);
+			//fsgd::d3d11_device.UpdateTexture(myMeshes[i], i, myFrameNumbers[i]);
 		}
 
 	
