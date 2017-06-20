@@ -114,10 +114,10 @@ struct Point
 };
 struct TJColor
 {
-	float r;
-	float g;
-	float b;
-	float a;
+	float r = 0;
+	float g = 0;
+	float b = 0;
+	float a = 0;
 	float implicitLineEquation(Point A, Point B, Point Curr)
 	{
 		return ((A.y - B.y)*Curr.x + (B.x - A.x)*Curr.y + A.x*B.y - A.y*B.x);
@@ -463,7 +463,7 @@ struct Mesh
 	AnimationClip * myClip;
 };
 
-class  TJMatrix
+class alignas(16) TJMatrix
 {
 public:
 	float e11, e12, e13, e14;
@@ -542,7 +542,12 @@ public:
 		yo.e31 = e13;	yo.e32 = e23;	yo.e33 = e33;	yo.e34 = e43;
 		yo.e41 = e14;	yo.e42 = e24;	yo.e43 = e34;	yo.e44 = e44;
 
-		*this = yo;
+
+		e11 = yo.e11;	e12 = yo.e12;   e13 = yo.e13; 	e14 = yo.e14;
+		e21 = yo.e21;	e22 = yo.e22;   e23 = yo.e23;	e24 = yo.e24;
+		e31 = yo.e31;	e32 = yo.e32;	e33 = yo.e33;	e34 = yo.e34;
+		e41 = yo.e41;	e42 = yo.e42;	e43 = yo.e43;	e44 = yo.e44;
+	
 	}
 	void ScaleThisMatrix(float s)
 	{
@@ -554,7 +559,7 @@ public:
 
 
 	}
-	TJMatrix InverseMatrix(TJMatrix m)
+	TJMatrix InverseMatrix(TJMatrix & m)
 	{
 		float det = Matrix_Determinant(m);
 		if (det == 0)
@@ -606,15 +611,20 @@ public:
 		return m;
 
 	}
-	void SetAsViewMatrix()
+	void SetAsViewMatrix(TJMatrix & camera)
 	{
 		TJMatrix temp;
-		temp.SetAsZero();
+		temp.SetAsIdentiy();
 		TJMatrix rotationMatrix = CreateRoatation_X(-18);
 		TJMatrix translationMatrix = CreateTranslationMatrix(0, 0, -1);
 		temp = Matrix_Matrix_Multiply(translationMatrix, rotationMatrix);
+		temp = Matrix_Matrix_Multiply(temp, camera);
 		temp = InverseMatrix(temp);
-		*this = temp;
+		
+		e11 = temp.e11; e12 = temp.e12; e13 = temp.e13; e14 = temp.e14;
+		e21 = temp.e21; e22 = temp.e22; e23 = temp.e23; e24 = temp.e24;
+		e31 = temp.e31; e32 = temp.e32; e33 = temp.e33; e34 = temp.e34;
+		e41 = temp.e41; e42 = temp.e42; e43 = temp.e43; e44 = temp.e44;
 	}
 
 	static TJMatrix CreateIdentiyMatrix()
@@ -659,7 +669,7 @@ public:
 		temp.SetAsProjectionMatrix(znear, zfar, aspectRatio, VFieldOfView);
 		return temp;
 	}
-	static TJMatrix CreateTransposedMatrix(TJMatrix m)
+	static TJMatrix CreateTransposedMatrix(TJMatrix & m)
 	{
 		TJMatrix temp;
 		temp = m;
@@ -667,17 +677,17 @@ public:
 		return temp;
 
 	}
-	static TJMatrix CreateScaledMatrix(TJMatrix m, float scale)
+	static TJMatrix CreateScaledMatrix(TJMatrix & m, float scale)
 	{
 		TJMatrix temp;
 		temp = m;
 		temp.ScaleThisMatrix(scale);
 		return temp;
 	}
-	static TJMatrix CreateViewMatrix()
+	static TJMatrix CreateViewMatrix(TJMatrix & camera)
 	{
 		TJMatrix temp;
-		temp.SetAsViewMatrix();
+		temp.SetAsViewMatrix(camera);
 		return temp;
 	}
 
@@ -711,7 +721,7 @@ public:
 	
 		return m;
 	}
-	static Mesh TranslateMesh(Mesh m, TJMatrix n)
+	static Mesh TranslateMesh(Mesh &m, TJMatrix & n)
 	{
 		for (int j = 0; j < m.myTriangles.size(); j++)
 		{
@@ -742,8 +752,39 @@ public:
 		}
 		return m;
 	}
+	static Mesh * TranslateMesh(Mesh * m, TJMatrix * n)
+	{
+		for (int j = 0; j < m->myTriangles.size(); j++)
+		{
+			for (int i = 0; i < m->myTriangles[j].size(); i++)
+			{
+				m->myTriangles[j][i].a = Vector_Matrix_Multiply(&m->myTriangles[j][i].a, n);
+				m->myTriangles[j][i].b = Vector_Matrix_Multiply(&m->myTriangles[j][i].b, n);
+				m->myTriangles[j][i].c = Vector_Matrix_Multiply(&m->myTriangles[j][i].c, n);
+			}
+		}
+		for (int j = 0; j < m->boneVectorSize; j++)
+		{
+			for (int i = 0; i < m->bones[j].size(); i++)
+			{
+				TJVertex temp;
+				temp.pos.x = m->bones[j][i].x;
+				temp.pos.y = m->bones[j][i].y;
+				temp.pos.z = m->bones[j][i].z;
+				temp.pos.w = m->bones[j][i].w;
 
-	static TJMatrix Matrix_Matrix_Multiply(TJMatrix m, TJMatrix n)
+				temp = Vector_Matrix_Multiply(&temp, n);
+
+				m->bones[j][i].x = temp.pos.x;
+				m->bones[j][i].y = temp.pos.y;
+				m->bones[j][i].z = temp.pos.z;
+				m->bones[j][i].w = temp.pos.w;
+			}
+		}
+		return m;
+	}
+
+	static TJMatrix Matrix_Matrix_Multiply(TJMatrix &m, TJMatrix & n)
 	{
 		TJMatrix yo;
 		yo.SetAsZero();
@@ -754,7 +795,18 @@ public:
 
 		return yo;
 	}
-	static TJVertex Vector_Matrix_Multiply(TJVertex v, TJMatrix m)
+	static TJMatrix * Matrix_Matrix_Multiply(TJMatrix * m, TJMatrix  * n)
+	{
+		TJMatrix * yo;
+		yo->SetAsZero();
+		yo->e11 = m->e11 * n->e11 + m->e12 * n->e21 + m->e13 * n->e31 + m->e14 * n->e41;			yo->e12 = m->e11 * n->e12 + m->e12 * n->e22 + m->e13 * n->e32 + m->e14 * n->e42; yo->e13 = m->e11 * n->e13 + m->e12 * n->e23 + m->e13 * n->e33 + m->e14 * n->e43;		yo->e14 = m->e11 * n->e14 + m->e12 * n->e24 + m->e13 * n->e34 + m->e14 * n->e44;
+		yo->e21 = m->e21 * n->e11 + m->e22 * n->e21 + m->e23 * n->e31 + m->e24 * n->e41;			yo->e22 = m->e21 * n->e12 + m->e22 * n->e22 + m->e23 * n->e32 + m->e24 * n->e42; yo->e23 = m->e21 * n->e13 + m->e22 * n->e23 + m->e23 * n->e33 + m->e24 * n->e43;		yo->e24 = m->e21 * n->e14 + m->e22 * n->e24 + m->e23 * n->e34 + m->e24 * n->e44;
+		yo->e31 = m->e31 * n->e11 + m->e32 * n->e21 + m->e33 * n->e31 + m->e34 * n->e41;			yo->e32 = m->e31 * n->e12 + m->e32 * n->e22 + m->e33 * n->e32 + m->e34 * n->e42;	yo->e33 = m->e31 * n->e13 + m->e32 * n->e23 + m->e33 * n->e33 + m->e34 * n->e43;		yo->e34 = m->e31 * n->e14 + m->e32 * n->e24 + m->e33 * n->e34 + m->e34 * n->e44;
+		yo->e41 = m->e41 * n->e11 + m->e42 * n->e21 + m->e43 * n->e31 + m->e44 * n->e41;			yo->e42 = m->e41 * n->e12 + m->e42 * n->e22 + m->e43 * n->e32 + m->e44 * n->e42;	yo->e43 = m->e41 * n->e13 + m->e42 * n->e23 + m->e43 * n->e33 + m->e44 * n->e43;		yo->e44 = m->e41 * n->e14 + m->e42 * n->e24 + m->e43 * n->e34 + m->e44 * n->e44;
+
+		return yo;
+	}
+	static TJVertex Vector_Matrix_Multiply(TJVertex &v, TJMatrix &m)
 	{
 		// TODO LAB 2: Replace with your implementation.
 		TJVertex temp;
@@ -771,7 +823,24 @@ public:
 		temp.pos.w = m.e14 *v.pos.x + m.e24 * v.pos.y + m.e34 * v.pos.z + m.e44 * v.pos.w;
 		return temp;
 	}
-	static Point Point_Matrix_Multiply(Point v, TJMatrix m)
+	static TJVertex  Vector_Matrix_Multiply(TJVertex * v, TJMatrix * m)
+	{
+		// TODO LAB 2: Replace with your implementation.
+		TJVertex  temp;
+		temp.color = v->color;
+		//	temp.translation = v->translation;
+		//	temp.rotation = temp.rotation;
+		//	temp.scale = v->scale;
+		temp.u = v->u;
+		temp.v = v->v;
+		temp.normal = v->normal;
+		temp.pos.x = m->e11 *v->pos.x + m->e21 * v->pos.y + m->e31 * v->pos.z + m->e41 * v->pos.w;
+		temp.pos.y = m->e12 *v->pos.x + m->e22 * v->pos.y + m->e32 * v->pos.z + m->e42 * v->pos.w;
+		temp.pos.z = m->e13 *v->pos.x + m->e23 * v->pos.y + m->e33 * v->pos.z + m->e43 * v->pos.w;
+		temp.pos.w = m->e14 *v->pos.x + m->e24 * v->pos.y + m->e34 * v->pos.z + m->e44 * v->pos.w;
+		return  temp;
+	}
+	static Point Point_Matrix_Multiply(Point &v, TJMatrix & m)
 	{
 		// TODO LAB 2: Replace with your implementation.
 		Point temp;
@@ -782,7 +851,7 @@ public:
 		return temp;
 	}
 
-	float Matrix_Determinant(TJMatrix m)
+	float Matrix_Determinant(TJMatrix &m)
 	{
 		float det = m.e11 * (m.e22 * (m.e33 * m.e44 - m.e43 * m.e34) - m.e23 *(m.e32 * m.e44 - m.e42 * m.e34) + m.e24 * (m.e32 * m.e43 - m.e42 * m.e33)) - m.e12 * (m.e21 * (m.e33 * m.e44 - m.e43 * m.e34) - m.e23 *(m.e31 * m.e44 - m.e41 * m.e34) + m.e24 * (m.e31 * m.e43 - m.e41 * m.e33)) + m.e13 * (m.e21 * (m.e32 * m.e44 - m.e42 * m.e34) - m.e22 *(m.e31 * m.e44 - m.e41 * m.e34) + m.e24 * (m.e31 * m.e42 - m.e41 * m.e32)) - m.e14 * (m.e21 * (m.e32 * m.e43 - m.e42 * m.e33) - m.e22 *(m.e31 * m.e43 - m.e41 * m.e33) + m.e23 * (m.e31 * m.e42 - m.e41 * m.e32));
 		return det;
@@ -804,11 +873,11 @@ struct color4f
 	float b;
 	float a;
 };
-struct VERTEX
+struct  VERTEX
 {
 	float x, y, z, w;
 	color4f color;
-	float u, v;
+	
 };
 struct TJMVPBuffer
 {

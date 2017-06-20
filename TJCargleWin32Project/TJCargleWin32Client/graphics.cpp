@@ -66,17 +66,17 @@ void RemoveAllMeshFromVertexList()
 	
 	}
 }
-void SetCamera(TJMatrix m)
+void SetCamera(TJMatrix &m)
 {
 	camera = m;
 }
 
-void SetView(TJMatrix m)
+void SetView(TJMatrix &m)
 {
 	view = m;
 }
 
-void SetProj(TJMatrix m)
+void SetProj(TJMatrix &m)
 {
 	proj = m;
 }

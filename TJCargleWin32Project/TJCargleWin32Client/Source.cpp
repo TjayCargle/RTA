@@ -32,7 +32,7 @@ int main(void)
 	Mesh * testMesh;
 	testMesh = functionExpert.getMeshFromFbx();
 //	testMesh = functionExpert.LoadMeshAnimationData(testMesh);
-	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.003f);
+//	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.003f);
 
 	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
 	*testMesh = TJMatrix::TranslateMesh(*testMesh, teddyTrans);

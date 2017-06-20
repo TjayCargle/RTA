@@ -14,9 +14,11 @@
 #pragma comment(lib, "D3DCompiler.lib")
 ID3D11Buffer * GPUSideVertexBuffer = nullptr;
 ID3D11Buffer * GPUSideIndexBuffer = nullptr;
+ID3D11Buffer * GPUSideConstantBuffer = nullptr;
 TJMatrix camera;
 TJMatrix view;
 TJMatrix proj;
+TJMVPBuffer myCVPbuffer;
 int gridVertCount;
 bool AutoAnimate = true;
 int animationFrameNum = 0;
@@ -266,7 +268,7 @@ namespace fsgd
 		D3D11_RASTERIZER_DESC rasterDesc;
 
 		rasterDesc.AntialiasedLineEnable = false;
-		rasterDesc.CullMode = D3D11_CULL_FRONT;
+		rasterDesc.CullMode = D3D11_CULL_NONE;
 		rasterDesc.DepthBias = 0;
 		rasterDesc.DepthBiasClamp = 0.0f;
 		rasterDesc.DepthClipEnable = true;
@@ -346,38 +348,20 @@ namespace fsgd
 		};
 
 		d3d11_device->CreateInputLayout(ied, 2, VS->GetBufferPointer(), VS->GetBufferSize(), &default_pipeline.input_layout);
+
+	
+		CD3D11_BUFFER_DESC constantBufferDesc(sizeof(TJMVPBuffer), D3D11_BIND_CONSTANT_BUFFER);
+	
+		dev->CreateBuffer(&constantBufferDesc,nullptr,&GPUSideConstantBuffer);
 	}
 
 	void d3d11_device_t::init_default_graphics()
 	{
 		camera.SetAsIdentiy();
-		view.SetAsViewMatrix();
-		proj.SetAsProjectionMatrix(0.1, 10.0, (1280 / 720), 90);
-		/*	VERTEX verts[] =
-			{
-				{ -1.0f, -1.0f, 0.0f, blue },
-				{ 1.0f, -1.0f, 0.0f, blue },
-				{ -1.0f, 1.0f, 0.0f, blue },
-
-				{ -1.0f, 1.0f, 0.0f, blue },
-				{ 1.0f, -1.0f, 0.0f, blue },
-				{ 1.0f, 1.0f, 0.0f, blue }
-			};*/
-		std::vector<VERTEX> verts;
-		VERTEX v1 = { -1,-1,0,1, blue };
-		VERTEX v2 = { 1,-1,0,1, blue };
-		VERTEX v3 = { -1,1,0,1, blue };
-		VERTEX v4 = { -1,1,0,1, blue };
-		VERTEX v5 = { 1,-1,0,1, blue };
-		VERTEX v6 = { 1,1,0,1, blue };
-		//	verts.push_back(v1);
-		//	verts.push_back(v2);
-		//	verts.push_back(v3);
-		//	verts.push_back(v4);
-		//	verts.push_back(v5);
-		//	verts.push_back(v6);
-
-		for (float i = -0.5; i < 0.5; i += 0.1)
+		view.SetAsViewMatrix(camera);
+		proj.SetAsProjectionMatrix(0.1, 10.0, (1280 / 720), 180);
+	
+		for (float i = -100.5; i < 100.5; i += 0.1)
 		{
 			TJVertex temp;
 
@@ -387,40 +371,13 @@ namespace fsgd
 			StartPoint.z = -0.5;
 			StartPoint.color = green;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
 			VERTEX EndPoint;
 			EndPoint.x = i;
 			EndPoint.y = 0;
 			EndPoint.z = 0.5;
 			EndPoint.color = green;
 
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
-
+			
 			gridVerts.push_back(StartPoint);
 			gridVerts.push_back(EndPoint);
 
@@ -428,38 +385,9 @@ namespace fsgd
 			StartPoint.y = 0;
 			StartPoint.z = i;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
-
 			EndPoint.x = 0.5;
 			EndPoint.y = 0;
 			EndPoint.z = i;
-
-
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
 
 			gridVerts.push_back(StartPoint);
 			gridVerts.push_back(EndPoint);
@@ -487,11 +415,13 @@ namespace fsgd
 	void d3d11_device_t::UpdateGrid()
 	{
 		int count = 0;
-		for (float i = -0.5; i < 0.5; i += 0.1)
+		myCVPbuffer.tjModel = TJMatrix::CreateIdentiyMatrix();
+		myCVPbuffer.tjView = view.CreateViewMatrix(camera);
+		myCVPbuffer.tjProj = proj;
+		for (float i = -100.5; i < 100.5; i += 0.1)
 		{
 			if (count >= gridVerts.size())
 				break;
-			TJVertex temp;
 
 			VERTEX StartPoint;
 			StartPoint.x = i;
@@ -499,82 +429,24 @@ namespace fsgd
 			StartPoint.z = -0.5;
 			StartPoint.color = green;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
 			VERTEX EndPoint;
 			EndPoint.x = i;
 			EndPoint.y = 0;
 			EndPoint.z = 0.5;
 			EndPoint.color = green;
 
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
-
 			gridVerts[count] = StartPoint;
 			count++;
 			gridVerts[count] = EndPoint;
 			count++;
 
-
 			StartPoint.x = -0.5f;
 			StartPoint.y = 0;
 			StartPoint.z = i;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
-
 			EndPoint.x = 0.5;
 			EndPoint.y = 0;
 			EndPoint.z = i;
-
-
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
 
 			gridVerts[count] = StartPoint;
 			count++;
@@ -601,28 +473,11 @@ namespace fsgd
 		int count = 0;
 		std::vector<std::vector<VTriangle>> itsTriangles = someMesh->myTriangles;
 		std::vector<VERTEX> vertexVector;
+	
+		myCVPbuffer.tjModel = camera;
+		myCVPbuffer.tjView = view.CreateViewMatrix(camera);
+		myCVPbuffer.tjProj = proj;
 		int j = 0;
-		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
-		{
-			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
-			{
-				if (count >= gridVerts.size())
-					break;
-
-				itsTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].a, camera);
-				itsTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].a, view);
-				itsTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].a, proj);
-				itsTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].b, camera);
-				itsTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].b, view);
-				itsTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].b, proj);
-				itsTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].c, camera);
-				itsTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].c, view);
-				itsTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(itsTriangles[j][i].c, proj);
-
-
-			}
-		}
-
 		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
 		{
 			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
@@ -850,9 +705,9 @@ namespace fsgd
 			temp.pos.y = someMesh->bones[j][i].y;
 			temp.pos.z = someMesh->bones[j][i].z;
 			temp.pos.w = 1;
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
+			temp = TJMatrix::Vector_Matrix_Multiply(&temp, &camera);
+			temp = TJMatrix::Vector_Matrix_Multiply(&temp, &view);
+			temp = TJMatrix::Vector_Matrix_Multiply(&temp, &proj);
 
 
 			TJVertex tjTemp2;
@@ -864,9 +719,9 @@ namespace fsgd
 				tjTemp2.pos.y = someMesh->bones[j][pIndex].y;
 				tjTemp2.pos.z = someMesh->bones[j][pIndex].z;
 				tjTemp2.pos.w = 1;
-				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, camera);
-				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, view);
-				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, proj);
+				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(&tjTemp2, &camera);
+				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(&tjTemp2, &view);
+				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(&tjTemp2, &proj);
 
 
 
@@ -923,18 +778,18 @@ namespace fsgd
 					tjTemp.pos.y = someMesh->bones[j][i].y;
 					tjTemp.pos.z = someMesh->bones[j][i].z;
 					tjTemp.pos.w = 1;
-					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, camera);
-					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, view);
-					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, proj);
+					tjTemp = TJMatrix::Vector_Matrix_Multiply(&tjTemp, &camera);
+					tjTemp = TJMatrix::Vector_Matrix_Multiply(&tjTemp, &view);
+					tjTemp = TJMatrix::Vector_Matrix_Multiply(&tjTemp, &proj);
 
 					TJVertex tjTempTrans;
 					tjTempTrans.pos.x = someMesh->bones[j][i].x + 0.04f;
 					tjTempTrans.pos.y = someMesh->bones[j][i].y + 0.05f;
 					tjTempTrans.pos.z = someMesh->bones[j][i].z + 0.03f;
 					tjTempTrans.pos.w = 1;
-					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, camera);
-					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, view);
-					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, proj);
+					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(&tjTempTrans, &camera);
+					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(&tjTempTrans, &view);
+					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(&tjTempTrans, &proj);
 
 
 					VERTEX temp;
@@ -1014,7 +869,7 @@ namespace fsgd
 		// Update prior to rendering
 		////////////////////////////////////////////
 
-		fsgd::d3d11_device.UpdateGrid();
+		
 
 
 		auto devcon = d3d11_device.d3d11_context.devcon;
@@ -1037,65 +892,80 @@ namespace fsgd
 
 		UINT stride = sizeof(VERTEX);
 		UINT offset = 0;
+		fsgd::d3d11_device.UpdateGrid();
+		myCVPbuffer.tjModel = TJMatrix::CreateTransposedMatrix(camera);
+		myCVPbuffer.tjView = TJMatrix::CreateTransposedMatrix(view);
+		myCVPbuffer.tjProj = TJMatrix::CreateTransposedMatrix(proj);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
 		devcon->IASetVertexBuffers(0, 1, &d3d11_device.default_vert_buffer, &stride, &offset);
-
 		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
-
+		devcon->IASetInputLayout(d3d11_device.default_pipeline.input_layout);
+		devcon->VSSetShader(d3d11_device.default_pipeline.vertex_shader, nullptr, 0);
+		devcon->VSSetConstantBuffers(0, 1, &GPUSideConstantBuffer);
+		constexpr size_t alignment = alignof(TJMatrix);
 		devcon->Draw(gridVertCount, 0);
-		for (int i = 0; i < myMeshes.size(); i++)
-		{
-		
-			fsgd::d3d11_device.UpdateMesh(myMeshes[i], i, myFrameNumbers[i]);
-
-			devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
-			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-			devcon->DrawIndexed(myMeshes[i]->indexBuffer.size() * 4, 0, 0);
-
-			if (AutoAnimate)
-			{
-				fsgd::d3d11_device.UpdateBones(myMeshes[i], i, myFrameNumbers[i]);
-			}
-			else
-			{
-				if (animationFrameNum >= myMeshes[i]->bones.size())
-					animationFrameNum = 0;
-				if (animationFrameNum < 0)
-					animationFrameNum = myMeshes[i]->bones.size() -1;
-				fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum);
-			}
-
-			devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
-			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
-			devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-			for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
-				devcon->Draw(myMeshes[i]->bones[j].size() * 2, 0);
-
-		
-			if (AutoAnimate)
-			{
-				fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, myFrameNumbers[i]);
-			}
-			else
-			{
-				if (animationFrameNum >= myMeshes[i]->bones.size())
-					animationFrameNum = 0;
-				if (animationFrameNum < 0)
-					animationFrameNum = myMeshes[i]->bones.size() - 1;
-				fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum);
-			}
-			
-			devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
-			devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-			for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
-				devcon->Draw(myMeshes[i]->bones[j].size() * 6, 0);
-
-			myFrameNumbers[i]++;
-			if (myFrameNumbers[i] >= myMeshes[i]->bones.size())
-				myFrameNumbers[i] = 1;
+	for (int i = 0; i < myMeshes.size(); i++)
+	{
 	
-			//fsgd::d3d11_device.UpdateTexture(myMeshes[i], i, myFrameNumbers[i]);
+		fsgd::d3d11_device.UpdateMesh(myMeshes[i], i, myFrameNumbers[i]);
+
+		myCVPbuffer.tjModel = TJMatrix::CreateTransposedMatrix(camera.CreateIdentiyMatrix());
+		myCVPbuffer.tjView = TJMatrix::CreateTransposedMatrix(view);
+		myCVPbuffer.tjProj = TJMatrix::CreateTransposedMatrix(proj);
+
+		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
+		devcon->DrawIndexed(myMeshes[i]->indexBuffer.size() * 4, 0, 0);
+
+	/*	if (AutoAnimate)
+		{
+			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, myFrameNumbers[i]);
 		}
+		else
+		{
+			if (animationFrameNum >= myMeshes[i]->bones.size())
+				animationFrameNum = 0;
+			if (animationFrameNum < 0)
+				animationFrameNum = myMeshes[i]->bones.size() -1;
+			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum);
+		}
+
+		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
+		for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
+			devcon->Draw(myMeshes[i]->bones[j].size() * 2, 0);
+
+	
+		if (AutoAnimate)
+		{
+			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, myFrameNumbers[i]);
+		}
+		else
+		{
+			if (animationFrameNum >= myMeshes[i]->bones.size())
+				animationFrameNum = 0;
+			if (animationFrameNum < 0)
+				animationFrameNum = myMeshes[i]->bones.size() - 1;
+			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum);
+		}
+		
+		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
+		for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
+			devcon->Draw(myMeshes[i]->bones[j].size() * 6, 0);
+
+		myFrameNumbers[i]++;
+		if (myFrameNumbers[i] >= myMeshes[i]->bones.size())
+			myFrameNumbers[i] = 1;
+	*/
+		//fsgd::d3d11_device.UpdateTexture(myMeshes[i], i, myFrameNumbers[i]);
+	
+	}
 
 	
 
