@@ -32,9 +32,9 @@ int main(void)
 	Mesh * testMesh;
 	testMesh = functionExpert.getMeshFromFbx();
 //	testMesh = functionExpert.LoadMeshAnimationData(testMesh);
-//	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.003f);
+	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.0003f);
 
-	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
+	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.1, 0, 0);
 	*testMesh = TJMatrix::TranslateMesh(*testMesh, teddyTrans);
 	testMesh->name = "Teddy";
 
@@ -63,9 +63,9 @@ int main(void)
 	testMesh2 = functionExpert.getMeshFromFbx();
 	testMesh2->name = "Mage";
 
-	*testMesh2 = TJMatrix::ScaleMesh(*testMesh2, 0.09f);
+	*testMesh2 = TJMatrix::ScaleMesh(*testMesh2, 0.009f);
 
-	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
+	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.1, 0, 0);
 	*testMesh2 = TJMatrix::TranslateMesh(*testMesh2, mageTrans);
 	AddMeshToVertexList(testMesh2);
 
@@ -75,12 +75,12 @@ int main(void)
 
 		if (GetAsyncKeyState(VK_UP) & 0x0001)
 		{
-			translationMatrix.SetAsTranslation(0, -0.05, 0);
+			translationMatrix.SetAsTranslation(0, 0.005, 0);
 			tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
 		}
 		if (GetAsyncKeyState(VK_DOWN) & 0x0001)
 		{
-			translationMatrix.SetAsTranslation(0, 0.05, 0);
+			translationMatrix.SetAsTranslation(0, -0.005, 0);
 			tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
 		}
 

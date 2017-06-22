@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-
+#include <DirectXMath.h>
 struct Point
 {
 	float x = 0;
@@ -862,6 +862,34 @@ public:
 		return det;
 	}
 
+	static DirectX::XMMATRIX TJM2Dir(TJMatrix & m)
+	{
+		DirectX::XMMATRIX returnMatrix;
+		DirectX::XMFLOAT4X4 temp4by4;
+		temp4by4._11 = m.e11;
+		temp4by4._21 = m.e21;
+		temp4by4._31 = m.e31;
+		temp4by4._41 = m.e41;
+
+		temp4by4._12 = m.e12;
+		temp4by4._22 = m.e22;
+		temp4by4._32 = m.e32;
+		temp4by4._42 = m.e42;
+
+		temp4by4._13 = m.e13;
+		temp4by4._23 = m.e23;
+		temp4by4._33 = m.e33;
+		temp4by4._43 = m.e43;
+
+		temp4by4._14 = m.e14;
+		temp4by4._24 = m.e24;
+		temp4by4._34 = m.e34;
+		temp4by4._44 = m.e44;
+
+		returnMatrix = DirectX::XMLoadFloat4x4(&temp4by4);
+		return returnMatrix;
+	}
+
 
 };
 
@@ -877,13 +905,14 @@ struct  VERTEX
 {
 	float x, y, z, w;
 	color4f color;
+	float u, v;
 	
 };
 struct TJMVPBuffer
 {
-	TJMatrix tjModel;
-	TJMatrix tjView;
-	TJMatrix tjProj;
+	DirectX::XMFLOAT4X4 dirCam;
+	DirectX::XMFLOAT4X4 dirView;
+	DirectX::XMFLOAT4X4 dirProj;
 };
 struct keyFrame
 {
