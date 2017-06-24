@@ -69,7 +69,10 @@ int main(void)
 	*testMesh2 = TJMatrix::TranslateMesh(*testMesh2, mageTrans);
 	AddMeshToVertexList(testMesh2);
 
-	
+	translationMatrix.SetAsTranslation(0, 0.05, 0);
+	tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
+	translationMatrix.SetAsTranslation(0, 0, -0.5);
+	tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
 	while (main_window.pump_events())
 	{
 

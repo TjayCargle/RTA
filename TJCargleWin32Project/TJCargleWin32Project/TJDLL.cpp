@@ -106,8 +106,10 @@ namespace TJDEV5LIB
 			{
 				FbxMesh * firstMesh = firstNode->GetMesh();
 				int vertextCount = firstMesh->GetControlPointsCount();
-
-				int polyCount = firstMesh->GetPolygonCount();
+				uint32_t indexCount = firstMesh->GetPolygonVertexCount();
+				uint32_t polygonCount = firstMesh->GetPolygonCount();
+				int polyVertCount = polygonCount * 3;
+				//int polyCount = firstMesh->GetPolygonCount();
 				FbxGeometryElement::EMappingMode normalMappingMode = FbxGeometryElement::eNone;
 				FbxGeometryElement::EMappingMode uvMappingMode = FbxGeometryElement::eNone;
 				bool mAllbyControlPoints = true;
@@ -116,6 +118,14 @@ namespace TJDEV5LIB
 				bool meshHasUV = firstMesh->GetElementUVCount() > 0 ? true : false;
 				if (meshHasNormal)
 				{
+					int someCOunt = firstMesh->GetElementNormalCount();
+					for (int l = 0; l < someCOunt; l++)
+					{
+						if (firstMesh->GetElementNormal(l)->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+						{
+							int yo = 0;
+						}
+					}
 					normalMappingMode = firstMesh->GetElementNormal(0)->GetMappingMode();
 					if (normalMappingMode == FbxGeometryElement::eNone)
 						meshHasNormal = false;
@@ -134,6 +144,9 @@ namespace TJDEV5LIB
 					if (meshHasUV && uvMappingMode == FbxGeometryElement::eByPolygonVertex)
 						mAllByPolygonVertex = true;
 				}
+
+
+
 				if (!mAllbyControlPoints)
 				{
 					vertextCount = vertextCount * 3; //3 because triangles
@@ -155,76 +168,170 @@ namespace TJDEV5LIB
 				{
 					uvElement = firstMesh->GetElementUV(0);
 				}
+				float * lUVs = NULL;
+				FbxStringList lUVNames;
+				firstMesh->GetUVSetNames(lUVNames);
+				const char * lUVName = NULL;
+				if (meshHasUV && lUVNames.GetCount())
+				{
+					lUVs = new float[polyVertCount * 2];
+					lUVName = lUVNames[0];
+				}
 				std::vector<TJVertex> tjVerts;
 				std::vector<VTriangle> tjTriangles;
-				returnMesh->vertexCount = firstMesh->GetPolygonVertexCount();
 
-				for (int ind = 0; ind < vertextCount; ind++)
+				//	std::vector<TJVertex> polyTjVerts;
+				//	std::vector<VTriangle> polyTjTriangles;
+
+				int ployIndexCounter = 0;
+				if (!mAllbyControlPoints)
 				{
-
-
-					// Save the vertex position.
-					//if (mAllbyControlPoints)
+					returnMesh->vertexCount = firstMesh->GetPolygonVertexCount();
+					for (int ind = 0; ind < vertextCount; ind++)
 					{
-						TJVertex tjCurrentVert;
-						currentVertex = firstMesh->GetControlPointAt(ind);
 
-						tjCurrentVert.pos.x = currentVertex.mData[0];
-						tjCurrentVert.pos.y = currentVertex.mData[1];
-						tjCurrentVert.pos.z = currentVertex.mData[2];
-						tjCurrentVert.pos.w = 1;//currentVertex.mData[3];
 
-						if (meshHasNormal)
+						// Save the vertex position.
+						//if (mAllbyControlPoints)
 						{
-							int normalIndex = ind;
-							if (normalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+							TJVertex tjCurrentVert;
+							currentVertex = firstMesh->GetControlPointAt(ind);
+
+							tjCurrentVert.pos.x = currentVertex.mData[0];
+							tjCurrentVert.pos.y = currentVertex.mData[1];
+							tjCurrentVert.pos.z = currentVertex.mData[2];
+							tjCurrentVert.pos.w = 1;//currentVertex.mData[3];
+
+							if (meshHasNormal)
 							{
-								normalIndex = normalElement->GetIndexArray().GetAt(ind);
+								int normalIndex = ind;
+								if (normalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+								{
+									normalIndex = normalElement->GetIndexArray().GetAt(ind);
+								}
+								currentNormal = normalElement->GetDirectArray().GetAt(normalIndex);
+
+
+								tjCurrentVert.normal.x = static_cast<float>(currentNormal[0]);
+								tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
+								tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
 							}
-							currentNormal = normalElement->GetDirectArray().GetAt(normalIndex);
-
-
-							tjCurrentVert.normal.x = static_cast<float>(currentNormal[0]);
-							tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
-							tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
-						}
-						if (meshHasUV)
-						{
-							int UVIndex = ind;
-							if (uvElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+							if (meshHasUV)
 							{
-								UVIndex = uvElement->GetIndexArray().GetAt(ind);
-							}
-							currentUV = uvElement->GetDirectArray().GetAt(UVIndex);
+								if (uvElement->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+								{
+									int UVIndex = ind;
+									if (uvElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+									{
+										UVIndex = uvElement->GetIndexArray().GetAt(ind);
+									}
+									currentUV = uvElement->GetDirectArray().GetAt(UVIndex);
 
-							tjCurrentVert.u = static_cast<float>(currentUV[0]);
-							tjCurrentVert.v = static_cast<float>(currentUV[1]);
+									tjCurrentVert.u = static_cast<float>(currentUV[0]);
+									tjCurrentVert.v = static_cast<float>(currentUV[1]);
+								}
+								else
+								{
+									int UVIndex = ind;
+									if (uvElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+									{
+										UVIndex = uvElement->GetIndexArray().GetAt(ind);
+									}
+									currentUV = uvElement->GetDirectArray().GetAt(UVIndex);
+									bool mappedUV;
+								
+									tjCurrentVert.u = static_cast<float>(currentUV[0]);
+									tjCurrentVert.v = static_cast<float>(currentUV[1]);
+									tjCurrentVert.u = 1 - tjCurrentVert.u;
+									//tjCurrentVert.v = 1 - tjCurrentVert.v;
+									
+								}
+							}
+							tjVerts.push_back(tjCurrentVert);
 						}
-						tjVerts.push_back(tjCurrentVert);
+
 					}
 
+
+					for (int i = 0; i < tjVerts.size(); i += 3)
+					{
+						VTriangle aTriangle;
+						aTriangle.a = tjVerts[i];
+						aTriangle.b = tjVerts[i + 1];
+						aTriangle.c = tjVerts[i + 2];
+						tjTriangles.push_back(aTriangle);
+					}
+					returnMesh->myTriangles.push_back(tjTriangles);
+
+					for (int polyInd = 0; polyInd < polygonCount; polyInd++)
+					{
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 0));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 1));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 2));
+					}
 				}
+				else if (mAllByPolygonVertex)
+				{
+					returnMesh->vertexCount = polyVertCount;
+
+					for (int lPolygonIndex = 0; lPolygonIndex < polygonCount; ++lPolygonIndex)
+					{
+						for (int lVerticeIndex = 0; lVerticeIndex < 3; ++lVerticeIndex)
+						{
+							TJVertex tjCurrentVert;
+							const int lControlPointIndex = firstMesh->GetPolygonVertex(lPolygonIndex, lVerticeIndex);
+							currentVertex = firstMesh->GetControlPointAt(lControlPointIndex);
+
+							tjCurrentVert.pos.x = currentVertex.mData[0];
+							tjCurrentVert.pos.y = currentVertex.mData[1];
+							tjCurrentVert.pos.z = currentVertex.mData[2];
+							tjCurrentVert.pos.w = 1;//currentVertex.mData[3];
+
+							if (meshHasNormal)
+							{
+								bool setNormals = firstMesh->GetPolygonVertexNormal(lPolygonIndex, lVerticeIndex, currentNormal);
+
+								if (setNormals)
+								{
+									tjCurrentVert.normal.x = static_cast<float>(currentNormal[0]);
+									tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
+									tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
+								}
+							}
+							if (meshHasUV)
+							{
+						
+								bool mappedUV;
+								firstMesh->GetPolygonVertexUV(lPolygonIndex, lVerticeIndex, lUVName, currentUV, mappedUV);
+								tjCurrentVert.u = static_cast<float>(currentUV[0]);
+								tjCurrentVert.v = static_cast<float>(currentUV[1]);
+							}
+							tjVerts.push_back(tjCurrentVert);
+						}
+					}
+
+					for (int i = 0; i < tjVerts.size(); i += 3)
+					{
+						VTriangle aTriangle;
+						aTriangle.a = tjVerts[i];
+						aTriangle.b = tjVerts[i + 1];
+						aTriangle.c = tjVerts[i + 2];
+						tjTriangles.push_back(aTriangle);
+					}
+					returnMesh->myTriangles.push_back(tjTriangles);
 
 
-				for (int i = 0; i < tjVerts.size(); i += 3)
-				{
-					VTriangle aTriangle;
-					aTriangle.a = tjVerts[i];
-					aTriangle.b = tjVerts[i + 1];
-					aTriangle.c = tjVerts[i + 2];
-					tjTriangles.push_back(aTriangle);
-				}
-				returnMesh->myTriangles.push_back(tjTriangles);
-				uint32_t indexCount = firstMesh->GetPolygonVertexCount();
-				uint32_t polygonCount = firstMesh->GetPolygonCount();
-				for (int i = 0; i < polygonCount; i++)
-				{
-					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 0));
-					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 1));
-					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 2));
+					for (int polyInd = 0; polyInd < polyVertCount; polyInd++)
+					{
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 0));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 1));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 2));
+					}
 				}
 			}
 
+
+			//Getting Bone Data
 			FbxNode * rootNode = nullptr;
 			for (int i = 0; i < itemCount; i++)
 			{
@@ -367,7 +474,7 @@ namespace TJDEV5LIB
 				aVert.pos = aPos;
 				tjVerts.push_back(aVert);
 
-				
+
 			}
 
 

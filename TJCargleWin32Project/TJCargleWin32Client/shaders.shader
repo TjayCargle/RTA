@@ -27,13 +27,6 @@ VOut VShader(float4 position : POSITION, float4 color : COLOR, float2 uv : TEXCO
 	return output;
 }
 
-SamplerState MeshTextureSampler
-{
-	Filter = MIN_MAG_MIP_LINEAR;
-	AddressU = Wrap;
-	AddressV = Wrap;
-};
-
 texture2D myTexture : register(t0);
 SamplerState filter : register(s0);
 

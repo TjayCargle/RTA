@@ -15,6 +15,7 @@
 ID3D11Buffer * GPUSideVertexBuffer = nullptr;
 ID3D11Buffer * GPUSideIndexBuffer = nullptr;
 ID3D11Buffer * GPUSideConstantBuffer = nullptr;
+ID3D11SamplerState * m_sampler;
 TJMatrix camera;
 TJMatrix view;
 TJMatrix proj;
@@ -105,7 +106,7 @@ namespace fsgd
 
 		void UpdateGrid();
 		void UpdateMesh(Mesh * someMesh, int bufferIndex, int frameNumber);
-		void UpdateTexture(Mesh * someMesh, int bufferIndex, int frameNumber);
+		void UpdateTexture(Mesh * someMesh);
 		void UpdateBones(Mesh *someMesh, int bufferIndex, int frameNumber);
 		void UpdateJoints(Mesh * someMesh, int bufferIndex, int frameNumber);
 		void initialize(window*);
@@ -566,10 +567,13 @@ namespace fsgd
 		d3d11_context->Unmap(GPUSideIndexBuffer, NULL);
 
 	}
-	void d3d11_device_t::UpdateTexture(Mesh * someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateTexture(Mesh * someMesh)
 	{
-		
-
+		if (someMesh->name == "Teddy" && m_texture2d == nullptr)
+		{
+			HRESULT result;
+			result = CreateDDSTextureFromFile(dev, L"../Teddy_D.dds", (ID3D11Resource**)m_texture2d, &m_shaderView);
+		}
 	}
 
 	void d3d11_device_t::UpdateBones(Mesh * someMesh, int bufferIndex, int frameNumber)
@@ -806,9 +810,33 @@ namespace fsgd
 		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
 		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+
+		ID3D11ShaderResourceView* texViews[] = { fsgd::d3d11_device.m_shaderView };
+		D3D11_SAMPLER_DESC m_sampDesc;
+		if (myMeshes[i]->name == "Teddy")
+		{
+			fsgd::d3d11_device.UpdateTexture(myMeshes[i]);
+			devcon->PSSetShaderResources(0, 1, texViews);
+
+
+			ZeroMemory(&m_sampDesc, sizeof(D3D11_SAMPLER_DESC));
+			m_sampDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+			m_sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+
+
+			fsgd::d3d11_device->CreateSamplerState(&m_sampDesc, &m_sampler);
+
+			devcon->PSSetSamplers(0, 1, &m_sampler);
+		}
 		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
 		devcon->DrawIndexed(myMeshes[i]->indexBuffer.size() * 4, 0, 0);
-
+		*texViews = nullptr;
+		m_sampler = nullptr;
+		devcon->PSSetShaderResources(0, 1, texViews);
+		devcon->PSSetSamplers(0, 1, &m_sampler);
 		if (AutoAnimate)
 		{
 			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, myFrameNumbers[i]);
@@ -853,7 +881,7 @@ namespace fsgd
 		if (myFrameNumbers[i] >= myMeshes[i]->bones.size())
 			myFrameNumbers[i] = 1;
 	
-		//fsgd::d3d11_device.UpdateTexture(myMeshes[i], i, myFrameNumbers[i]);
+
 	
 	}
 

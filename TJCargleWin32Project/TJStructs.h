@@ -30,6 +30,27 @@ struct Point
 		z = somez;
 		w = somew;
 	}
+	bool operator==(const Point &value)
+	{
+		bool returnedBool = true;
+		if (x != value.x)
+		{
+			returnedBool = false;
+		}
+		if (y != value.y)
+		{
+			returnedBool = false;
+		}
+		if (z != value.z)
+		{
+			returnedBool = false;
+		}
+		if (w != value.w)
+		{
+			returnedBool = false;
+		}
+		return returnedBool;
+	}
 	Point & operator+(const unsigned int &value)
 	{
 		x += value;
