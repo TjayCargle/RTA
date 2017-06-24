@@ -90,12 +90,12 @@ bool GetAutoBool()
 	return AutoAnimate;
 }
 
-void SetFrameNum(int setFrame)
+void SetFrameNum(int setFrame, int index)
 {
 	SetAutoBool(false);
-	animationFrameNum = setFrame;
+	animationFrameNum[index] = setFrame;
 }
-int GetFrameNum()
+std::vector<int> GetFrameNum()
 {
 	return animationFrameNum;
 }

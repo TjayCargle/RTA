@@ -55,5 +55,5 @@ void SetView(TJMatrix & m);
 void SetProj(TJMatrix &m);
 void SetAutoBool(bool setAuto);
 bool GetAutoBool();
-void SetFrameNum(int setFrame);
-int GetFrameNum();
+void SetFrameNum(int setFrame, int index);
+std::vector<int> GetFrameNum();

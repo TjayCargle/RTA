@@ -63,5 +63,8 @@
     <Image Include="..\Teddy_D.dds">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\Mage_D.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

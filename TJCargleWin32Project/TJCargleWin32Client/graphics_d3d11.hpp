@@ -22,7 +22,7 @@ TJMatrix proj;
 TJMVPBuffer myCVPbuffer;
 int gridVertCount;
 bool AutoAnimate = true;
-int animationFrameNum = 0;
+std::vector<int> animationFrameNum;
 std::vector<VERTEX> gridVerts;
 std::vector<Mesh *> myMeshes;
 
@@ -99,7 +99,9 @@ namespace fsgd
 		IDXGISwapChain *swapchain;
 		ID3D11Buffer *default_vert_buffer;
 		ID3D11Texture2D	*	m_texture2d;
+		ID3D11Texture2D	*	m_texture2d2;
 		ID3D11ShaderResourceView *	m_shaderView;
+		ID3D11ShaderResourceView *	m_shaderView2;
 		ID3D11SamplerState *		m_sampleState;
 		d3d11_context_t d3d11_context;
 	public:
@@ -500,8 +502,10 @@ namespace fsgd
 			XMMatrixTranspose(perspectiveMatrix * orientationMatrix)
 		);
 		//myCVPbuffer.tjProj = proj;
-		int j = 0;
-		//	for (int j = 0; j < someMesh->myTriangles.size(); j++)
+		int j = frameNumber;
+		if (j >= someMesh->myTriangles.size())
+			return;
+		//for (int j = 0; j < someMesh->myTriangles.size(); j++)
 		{
 			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
 			{
@@ -584,6 +588,11 @@ namespace fsgd
 			HRESULT result;
 			result = CreateDDSTextureFromFile(dev, L"../Teddy_D.dds", (ID3D11Resource**)m_texture2d, &m_shaderView);
 		}
+		else if (someMesh->name == "Mage" && m_texture2d2 == nullptr)
+		{
+			HRESULT result;
+			result = CreateDDSTextureFromFile(dev, L"../Mage_D.dds", (ID3D11Resource**)m_texture2d2, &m_shaderView2);
+		}
 	}
 
 	void d3d11_device_t::UpdateBones(Mesh * someMesh, int bufferIndex, int frameNumber)
@@ -612,6 +621,7 @@ namespace fsgd
 			temp.pos.x = someMesh->bones[j][i].x;
 			temp.pos.y = someMesh->bones[j][i].y;
 			temp.pos.z = someMesh->bones[j][i].z;
+	
 			temp.pos.w = 1;
 		
 
@@ -633,12 +643,18 @@ namespace fsgd
 				temp2.y = temp.pos.y;
 				temp2.z = temp.pos.z;
 				temp2.w = temp.pos.w;
+				temp2.nx = temp.normal.x;
+				temp2.ny = temp.normal.y;
+				temp2.nz = temp.normal.z;
 				vertexVector.push_back(temp2);
 
 				temp2.x = tjTemp2.pos.x;
 				temp2.y = tjTemp2.pos.y;
 				temp2.z = tjTemp2.pos.z;
 				temp2.w = tjTemp2.pos.w;
+				temp2.nx = tjTemp2.normal.x;
+				temp2.ny = tjTemp2.normal.y;
+				temp2.nz = tjTemp2.normal.z;
 				vertexVector.push_back(temp2);
 			}
 		}
@@ -676,7 +692,7 @@ namespace fsgd
 		int j = frameNumber;
 		//	for (int j = 0; j < someMesh->boneVectorSize; j++)
 		{
-			for (int i = 0; i < someMesh->bones[j].size(); i += 2)
+			for (int i = 0; i < someMesh->bones[j].size() && j < someMesh->bones.size(); i += 2)
 			{
 				if (count >= gridVerts.size())
 					break;
@@ -831,10 +847,29 @@ namespace fsgd
 		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 
-		ID3D11ShaderResourceView* texViews[] = { fsgd::d3d11_device.m_shaderView };
+		ID3D11ShaderResourceView* texViews[] = { nullptr };
 		D3D11_SAMPLER_DESC m_sampDesc;
 		if (myMeshes[i]->name == "Teddy")
 		{
+			*texViews = fsgd::d3d11_device.m_shaderView;
+			fsgd::d3d11_device.UpdateTexture(myMeshes[i]);
+			devcon->PSSetShaderResources(0, 1, texViews);
+
+
+			ZeroMemory(&m_sampDesc, sizeof(D3D11_SAMPLER_DESC));
+			m_sampDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+			m_sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+
+
+			fsgd::d3d11_device->CreateSamplerState(&m_sampDesc, &m_sampler);
+
+			devcon->PSSetSamplers(0, 1, &m_sampler);
+		}
+		else if (myMeshes[i]->name == "Mage")
+		{
+			*texViews = fsgd::d3d11_device.m_shaderView2;
 			fsgd::d3d11_device.UpdateTexture(myMeshes[i]);
 			devcon->PSSetShaderResources(0, 1, texViews);
 
@@ -862,11 +897,11 @@ namespace fsgd
 		}
 		else
 		{
-			if (animationFrameNum >= myMeshes[i]->bones.size())
-				animationFrameNum = 0;
-			if (animationFrameNum < 0)
-				animationFrameNum = myMeshes[i]->bones.size() -1;
-			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum);
+			if (animationFrameNum[i] >= myMeshes[i]->bones.size())
+				animationFrameNum[i] = 0;
+			if (animationFrameNum[i] < 0)
+				animationFrameNum[i] = myMeshes[i]->bones.size() -1;
+			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum[i]);
 		}
 
 		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
@@ -883,11 +918,11 @@ namespace fsgd
 		}
 		else
 		{
-			if (animationFrameNum >= myMeshes[i]->bones.size())
-				animationFrameNum = 0;
-			if (animationFrameNum < 0)
-				animationFrameNum = myMeshes[i]->bones.size() - 1;
-			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum);
+			if (animationFrameNum[i] >= myMeshes[i]->bones.size())
+				animationFrameNum[i] = 0;
+			if (animationFrameNum[i] < 0)
+				animationFrameNum[i] = myMeshes[i]->bones.size() - 1;
+			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum[i]);
 		}
 		
 		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);

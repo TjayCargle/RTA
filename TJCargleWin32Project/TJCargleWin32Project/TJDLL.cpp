@@ -253,7 +253,7 @@ namespace TJDEV5LIB
 						
 						}
 					}
-
+					returnMesh->myVerts = tjVerts;
 					for (int i = 0; i < tjVerts.size(); i += 3)
 					{
 						VTriangle aTriangle;
@@ -432,7 +432,7 @@ namespace TJDEV5LIB
 			aCLip.frames.push_back(aFrame);
 			targetMesh->myClip = &aCLip;
 		}
-		return targetMesh;
+		return LoadSkinAnimationData(targetMesh);
 	}
 
 	Mesh * Functions::LoadSkinAnimationData(Mesh * targetMesh)
@@ -482,9 +482,11 @@ namespace TJDEV5LIB
 						FbxSkin * firstSkin = reinterpret_cast<FbxSkin*>(firstDeformer);
 						FbxCluster * firstCluster = nullptr;
 						int clusterCount = firstSkin->GetClusterCount();
-
+						int mycount = 0;
 						for (int i = 0; i < clusterCount; i++)
 						{
+							std::vector<TJVertex> tempVerts = targetMesh->myVerts;
+							std::vector<VTriangle> tempTriangles;
 							FbxCluster * aCluster = firstSkin->GetCluster(i);
 							FbxNode * linkedNode = aCluster->GetLink();
 							int linkedControlCount = aCluster->GetControlPointIndicesCount();
@@ -505,38 +507,33 @@ namespace TJDEV5LIB
 							}
 							if (selectedNode)
 							{
-								//intJoint aConnectedJointMaybe;
-								//joint someJoint;
-								//FbxMatrix aMatrix = selectedNode->EvaluateGlobalTransform();
-								//someJoint.pos.x = aMatrix.mData[3][0];
-								//someJoint.pos.y = aMatrix.mData[3][1];
-								//someJoint.pos.z = aMatrix.mData[3][2];
-								//someJoint.pos.w = 1;
-								//someJoint.parent_index = targetMesh->fbxJoints[index]->parent_index;
-								//someJoint.pos.parentIndex = targetMesh->fbxJoints[index]->parent_index;
-								////gloabalTransforms
-								//tempBones.push_back(someJoint.pos);
-
-								for (int j = 0; j < linkedControlCount; j++)
-								{
-									Point somePoint;
-									float someNum = 0;
-									someNum += linkedpointArray[j];
-									someNum += weightsArray[j];
-									somePoint.x = someNum;
-									somePoint.y = someNum;
-
-									weightPoints.push_back(somePoint);
-								}
-
+								
+									for (int j = 0; j < linkedControlCount; j++)
+									{
+										
+										tempVerts[linkedpointArray[j]].pos.x += weightsArray[j];
+										tempVerts[linkedpointArray[j]].pos.y += weightsArray[j];
+										tempVerts[linkedpointArray[j]].pos.z += weightsArray[j];
+										//tempVerts[linkedpointArray[j]].pos.id2Affect = mycount;
+										mycount++;
+									}
+								
 
 
 							}
-						}
-						for (int w = 0;  w < weightPoints.size();  w++)
-						{
+							for (int i = 0; i < tempVerts.size(); i += 3)
+							{
+								VTriangle aTriangle;
+								aTriangle.a = tempVerts[i];
+								aTriangle.b = tempVerts[i + 1];
+								aTriangle.c = tempVerts[i + 2];
+								tempTriangles.push_back(aTriangle);
+							}
+							targetMesh->myTriangles.push_back(tempTriangles);
+
 
 						}
+					
 
 
 					}

@@ -41,9 +41,9 @@ float4 PShader(float4 position : SV_POSITION, float4 color : COLOR, float3 norma
 {
 	Light spotLight;
 
-spotLight.pos.x = 30.2f;
-spotLight.pos.y = 2.5f;
-spotLight.pos.z = 20.0f;
+spotLight.pos.x = 0.0f;
+spotLight.pos.y = 0.1f;
+spotLight.pos.z = 0.0f;
 spotLight.pos.w = 1;
 
 spotLight.dir.x = 1.0f;
@@ -53,7 +53,7 @@ spotLight.dir.w = 1.0f;
 float surfaceRatio = 0.0f;
 float4 coneDir = float4(0, 0, 0, 0);
 coneDir.x = 0.333f;
-coneDir.y = 0.333f;
+coneDir.y = 0.33f;
 coneDir.z = -0.333f;
 coneDir.w = 1.0f;
 float spotFactor = 1.0f;
@@ -75,19 +75,19 @@ else
 spotLight.lightRatio = 1.0f;
 
 spotLight.lightRatio = dot(spotLight.dir, normal);
-spotLight.lightRatio = clamp(spotLight.lightRatio, 1, 0.5);
+spotLight.lightRatio = clamp(spotLight.lightRatio, 1, 0.4);
 
 spotLight.color.r = 1.0f;
 spotLight.color.g = 1.0f;
 spotLight.color.b = 1.0f;
 spotLight.color.a = 1.0f;
-float range2 = 1.8f;
+float range2 = 500.8f;
 float Dist2 = length(spotLight.dir);
-float rangeAtt2 = 1 - clamp(Dist2 / range2, 1, 0.2);
+float rangeAtt2 = 1 - clamp(Dist2 / range2, 1, 0.1);
 spotLight.color.r = 0.0f;
 spotLight.color.b = 1.0f *spotLight.lightRatio * rangeAtt2 * spotFactor;
 spotLight.color.g = 0.0f;
-spotLight.color.a = 1.0f *spotLight.lightRatio* rangeAtt2;
+spotLight.color.a = 1.0f *spotLight.lightRatio* rangeAtt2 * spotFactor;
 
 
 	float4 returnedColor = myTexture.Sample(filter,uv);
@@ -97,7 +97,7 @@ spotLight.color.a = 1.0f *spotLight.lightRatio* rangeAtt2;
 	}
 	else
 	{
-		return returnedColor;// *spotLight.color;
+			return returnedColor;	
 	}
 
 }

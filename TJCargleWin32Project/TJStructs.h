@@ -8,6 +8,8 @@ struct Point
 	float z = 0;
 	float w = 1;
 	int parentIndex = -1;
+	int weight;
+	int id2Affect;
 	Point()
 	{
 		x = 0;
@@ -474,11 +476,11 @@ struct my_fbx_joint;
 struct Mesh
 {
 	std::vector<std::vector<VTriangle>> myTriangles;
+	std::vector<TJVertex> myVerts;
 	int vertexCount;
 	std::vector<unsigned int> indexBuffer;
 	int boneVectorSize = 0;
 	std::vector<std::vector<Point>> bones;
-//	std::vector<Point> bones;
 	std::string name = "yo";
 	std::vector<my_fbx_joint*> fbxJoints;
 	AnimationClip * myClip;

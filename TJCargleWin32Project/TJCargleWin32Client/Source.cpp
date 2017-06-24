@@ -23,8 +23,10 @@ int main(void)
 	cout << "Enter/Return -> imports a TeddyBear" << endl;
 
 	bool autoRun = true;
-	int animationFrameNumber = 0;
-
+	std::vector<int> animationFrameNumber;
+	int zero = 0;
+	animationFrameNumber.push_back(zero);
+	animationFrameNumber.push_back(zero);
 	functionExpert.SetupFbxManager();
 	functionExpert.setFbxIORoot();
 	functionExpert.setupFbxImporter("../Teddy_Run.fbx");
@@ -176,8 +178,10 @@ int main(void)
 		autoRun = GetAutoBool();
 		if (GetAsyncKeyState(VK_NUMPAD4))
 		{
-			animationFrameNumber--;
-			SetFrameNum(animationFrameNumber);
+			animationFrameNumber[0]--;
+			SetFrameNum(animationFrameNumber[0], 0);
+			animationFrameNumber[1]--;
+			SetFrameNum(animationFrameNumber[1], 0);
 		}
 		if (GetAsyncKeyState(VK_NUMPAD5))
 		{
@@ -188,16 +192,20 @@ int main(void)
 			}
 			else
 			{
-				animationFrameNumber = 0;
-				SetFrameNum(animationFrameNumber);
+				animationFrameNumber[0] = 0;
+				SetFrameNum(animationFrameNumber[0], 0);
+				animationFrameNumber[1] = 0;
+				SetFrameNum(animationFrameNumber[1], 0);
 				autoRun = true;
 				SetAutoBool(autoRun);
 			}
 		}
 		if (GetAsyncKeyState(VK_NUMPAD6))
 		{
-			animationFrameNumber++;
-			SetFrameNum(animationFrameNumber);
+			animationFrameNumber[0]++;
+			SetFrameNum(animationFrameNumber[0], 0);
+			animationFrameNumber[1]++;
+			SetFrameNum(animationFrameNumber[1], 0);
 		}
 
 		
