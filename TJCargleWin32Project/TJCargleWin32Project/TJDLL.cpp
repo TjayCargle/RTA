@@ -184,7 +184,7 @@ namespace TJDEV5LIB
 				//	std::vector<VTriangle> polyTjTriangles;
 
 				int ployIndexCounter = 0;
-				if (!mAllbyControlPoints)
+				//if (mAllbyControlPoints)
 				{
 					returnMesh->vertexCount = firstMesh->GetPolygonVertexCount();
 					for (int ind = 0; ind < vertextCount; ind++)
@@ -216,52 +216,12 @@ namespace TJDEV5LIB
 								tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
 								tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
 							}
-							if (meshHasUV)
-							{
-								if (uvElement->GetMappingMode() == FbxGeometryElement::eByControlPoint)
-								{
-									int UVIndex = ind;
-									if (uvElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-									{
-										UVIndex = uvElement->GetIndexArray().GetAt(ind);
-									}
-									currentUV = uvElement->GetDirectArray().GetAt(UVIndex);
-
-									tjCurrentVert.u = static_cast<float>(currentUV[0]);
-									tjCurrentVert.v = static_cast<float>(currentUV[1]);
-								}
-								else
-								{
-									int UVIndex = ind;
-									if (uvElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-									{
-										UVIndex = uvElement->GetIndexArray().GetAt(ind);
-									}
-									currentUV = uvElement->GetDirectArray().GetAt(UVIndex);
-									bool mappedUV;
-								
-									tjCurrentVert.u = static_cast<float>(currentUV[0]);
-									tjCurrentVert.v = static_cast<float>(currentUV[1]);
-									tjCurrentVert.u = 1 - tjCurrentVert.u;
-									//tjCurrentVert.v = 1 - tjCurrentVert.v;
-									
-								}
-							}
+							tjCurrentVert.u = 1;
+							tjCurrentVert.v = 1;
 							tjVerts.push_back(tjCurrentVert);
 						}
 
 					}
-
-
-					for (int i = 0; i < tjVerts.size(); i += 3)
-					{
-						VTriangle aTriangle;
-						aTriangle.a = tjVerts[i];
-						aTriangle.b = tjVerts[i + 1];
-						aTriangle.c = tjVerts[i + 2];
-						tjTriangles.push_back(aTriangle);
-					}
-					returnMesh->myTriangles.push_back(tjTriangles);
 
 					for (int polyInd = 0; polyInd < polygonCount; polyInd++)
 					{
@@ -270,7 +230,8 @@ namespace TJDEV5LIB
 						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 2));
 					}
 				}
-				else if (mAllByPolygonVertex)
+				int amountHit = 0;
+			 if (mAllByPolygonVertex)
 				{
 					returnMesh->vertexCount = polyVertCount;
 
@@ -278,35 +239,18 @@ namespace TJDEV5LIB
 					{
 						for (int lVerticeIndex = 0; lVerticeIndex < 3; ++lVerticeIndex)
 						{
-							TJVertex tjCurrentVert;
-							const int lControlPointIndex = firstMesh->GetPolygonVertex(lPolygonIndex, lVerticeIndex);
-							currentVertex = firstMesh->GetControlPointAt(lControlPointIndex);
-
-							tjCurrentVert.pos.x = currentVertex.mData[0];
-							tjCurrentVert.pos.y = currentVertex.mData[1];
-							tjCurrentVert.pos.z = currentVertex.mData[2];
-							tjCurrentVert.pos.w = 1;//currentVertex.mData[3];
-
-							if (meshHasNormal)
-							{
-								bool setNormals = firstMesh->GetPolygonVertexNormal(lPolygonIndex, lVerticeIndex, currentNormal);
-
-								if (setNormals)
-								{
-									tjCurrentVert.normal.x = static_cast<float>(currentNormal[0]);
-									tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
-									tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
-								}
-							}
+					
 							if (meshHasUV)
 							{
-						
+								int UVIndex = firstMesh->GetPolygonVertex(lPolygonIndex, lVerticeIndex);
 								bool mappedUV;
 								firstMesh->GetPolygonVertexUV(lPolygonIndex, lVerticeIndex, lUVName, currentUV, mappedUV);
-								tjCurrentVert.u = static_cast<float>(currentUV[0]);
-								tjCurrentVert.v = static_cast<float>(currentUV[1]);
+								
+								tjVerts[UVIndex].u =  static_cast<float>(currentUV[0]);
+								tjVerts[UVIndex].v = 1- static_cast<float>(currentUV[1]);
+								amountHit++;
 							}
-							tjVerts.push_back(tjCurrentVert);
+						
 						}
 					}
 
@@ -487,6 +431,117 @@ namespace TJDEV5LIB
 
 			aCLip.frames.push_back(aFrame);
 			targetMesh->myClip = &aCLip;
+		}
+		return targetMesh;
+	}
+
+	Mesh * Functions::LoadSkinAnimationData(Mesh * targetMesh)
+	{
+		int scenePoseCount = myFbxScene->GetPoseCount();
+		FbxPose * thePose = nullptr;
+		for (int i = 0; i < scenePoseCount; i++)
+		{
+			if (myFbxScene->GetPose(i)->IsBindPose())
+			{
+				thePose = myFbxScene->GetPose(i);
+				break;
+			}
+		}
+		if (thePose == nullptr)
+		{
+			return targetMesh;
+		}
+
+		int itemCount = thePose->GetCount();
+		std::vector<Point> weightPoints;
+		if (thePose->GetNode(0))
+		{
+			FbxNode * firstNode = thePose->GetNode(0);
+			if (firstNode->GetMesh())
+			{
+				FbxMesh * firstMesh = firstNode->GetMesh();
+				int deformerCount = firstMesh->GetDeformerCount();
+				if (deformerCount > 0)
+				{
+					FbxDeformer * firstDeformer = nullptr;
+					for (int i = 0; i < deformerCount; i++)
+					{
+						if (firstMesh->GetDeformer(i))
+						{
+							FbxDeformer * testDeformer = firstMesh->GetDeformer(i);
+							if (testDeformer->GetDeformerType() == FbxDeformer::eSkin)
+							{
+								firstDeformer = testDeformer;
+								break;
+							}
+
+						}
+					}
+					if (firstDeformer)
+					{
+						FbxSkin * firstSkin = reinterpret_cast<FbxSkin*>(firstDeformer);
+						FbxCluster * firstCluster = nullptr;
+						int clusterCount = firstSkin->GetClusterCount();
+
+						for (int i = 0; i < clusterCount; i++)
+						{
+							FbxCluster * aCluster = firstSkin->GetCluster(i);
+							FbxNode * linkedNode = aCluster->GetLink();
+							int linkedControlCount = aCluster->GetControlPointIndicesCount();
+							int * linkedpointArray = aCluster->GetControlPointIndices();
+							double * weightsArray = aCluster->GetControlPointWeights();
+							FbxNode * selectedNode = nullptr;
+
+							int index = -1;
+
+							for (int j = 0; j < targetMesh->fbxJoints.size(); j++)
+							{
+								if (linkedNode == targetMesh->fbxJoints[j]->node)
+								{
+									selectedNode = targetMesh->fbxJoints[j]->node;
+									index = j;
+									break;
+								}
+							}
+							if (selectedNode)
+							{
+								//intJoint aConnectedJointMaybe;
+								//joint someJoint;
+								//FbxMatrix aMatrix = selectedNode->EvaluateGlobalTransform();
+								//someJoint.pos.x = aMatrix.mData[3][0];
+								//someJoint.pos.y = aMatrix.mData[3][1];
+								//someJoint.pos.z = aMatrix.mData[3][2];
+								//someJoint.pos.w = 1;
+								//someJoint.parent_index = targetMesh->fbxJoints[index]->parent_index;
+								//someJoint.pos.parentIndex = targetMesh->fbxJoints[index]->parent_index;
+								////gloabalTransforms
+								//tempBones.push_back(someJoint.pos);
+
+								for (int j = 0; j < linkedControlCount; j++)
+								{
+									Point somePoint;
+									float someNum = 0;
+									someNum += linkedpointArray[j];
+									someNum += weightsArray[j];
+									somePoint.x = someNum;
+									somePoint.y = someNum;
+
+									weightPoints.push_back(somePoint);
+								}
+
+
+
+							}
+						}
+						for (int w = 0;  w < weightPoints.size();  w++)
+						{
+
+						}
+
+
+					}
+				}
+			}
 		}
 		return targetMesh;
 	}

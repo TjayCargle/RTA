@@ -926,6 +926,7 @@ struct  VERTEX
 {
 	float x, y, z, w;
 	color4f color;
+	float nx, ny, nz;
 	float u, v;
 	
 };

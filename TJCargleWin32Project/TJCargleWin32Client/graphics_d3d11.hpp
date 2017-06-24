@@ -269,7 +269,7 @@ namespace fsgd
 		D3D11_RASTERIZER_DESC rasterDesc;
 
 		rasterDesc.AntialiasedLineEnable = false;
-		rasterDesc.CullMode = D3D11_CULL_BACK;
+		rasterDesc.CullMode = D3D11_CULL_FRONT;
 		rasterDesc.DepthBias = 0;
 		rasterDesc.DepthBiasClamp = 0.0f;
 		rasterDesc.DepthClipEnable = true;
@@ -346,10 +346,11 @@ namespace fsgd
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D10_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D10_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D10_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		};
 
-		d3d11_device->CreateInputLayout(ied, 3, VS->GetBufferPointer(), VS->GetBufferSize(), &default_pipeline.input_layout);
+		d3d11_device->CreateInputLayout(ied, 4, VS->GetBufferPointer(), VS->GetBufferSize(), &default_pipeline.input_layout);
 
 	
 		CD3D11_BUFFER_DESC constantBufferDesc(sizeof(TJMVPBuffer), D3D11_BIND_CONSTANT_BUFFER);
@@ -514,6 +515,9 @@ namespace fsgd
 				temp.w =itsTriangles[j][i].a.pos.w;
 				temp.u = itsTriangles[j][i].a.u;
 				temp.v = itsTriangles[j][i].a.v;
+				temp.nx = itsTriangles[j][i].a.normal.x;
+				temp.ny = itsTriangles[j][i].a.normal.y;
+				temp.nz = itsTriangles[j][i].a.normal.z;
 				vertexVector.push_back(temp);
 
 				temp.x = itsTriangles[j][i].b.pos.x;
@@ -522,6 +526,9 @@ namespace fsgd
 				temp.w = itsTriangles[j][i].b.pos.w;
 				temp.u = itsTriangles[j][i].b.u;
 				temp.v = itsTriangles[j][i].b.v;
+				temp.nx = itsTriangles[j][i].b.normal.x;
+				temp.ny = itsTriangles[j][i].b.normal.y;
+				temp.nz = itsTriangles[j][i].b.normal.z;
 				vertexVector.push_back(temp);
 
 				temp.x =itsTriangles[j][i].c.pos.x;
@@ -530,6 +537,9 @@ namespace fsgd
 				temp.w =itsTriangles[j][i].c.pos.w;
 				temp.u = itsTriangles[j][i].c.u;
 				temp.v = itsTriangles[j][i].c.v;
+				temp.nx = itsTriangles[j][i].c.normal.x;
+				temp.ny = itsTriangles[j][i].c.normal.y;
+				temp.nz = itsTriangles[j][i].c.normal.z;
 				vertexVector.push_back(temp);
 
 			}
@@ -692,6 +702,9 @@ namespace fsgd
 					temp.y = tjTemp.pos.y;
 					temp.z = tjTemp.pos.z;
 					temp.w = tjTemp.pos.w;
+					temp.nx = tjTemp.normal.x;
+					temp.ny = tjTemp.normal.y;
+					temp.nz = tjTemp.normal.z;
 					vertexVector.push_back(temp);
 					temp.x = tjTempTrans.pos.x;
 					vertexVector.push_back(temp);
@@ -702,6 +715,9 @@ namespace fsgd
 					temp.y = tjTemp.pos.y;
 					temp.z = tjTemp.pos.z;
 					temp.w = tjTemp.pos.w;
+					temp.nx = tjTemp.normal.x;
+					temp.ny = tjTemp.normal.y;
+					temp.nz = tjTemp.normal.z;
 					vertexVector.push_back(temp);
 					temp.y = tjTempTrans.pos.y;
 					vertexVector.push_back(temp);
@@ -712,6 +728,9 @@ namespace fsgd
 					temp.y = tjTemp.pos.y;
 					temp.z = tjTemp.pos.z;
 					temp.w = tjTemp.pos.w;
+					temp.nx = tjTemp.normal.x;
+					temp.ny = tjTemp.normal.y;
+					temp.nz = tjTemp.normal.z;
 					vertexVector.push_back(temp);
 					temp.x = tjTempTrans.pos.x;
 					temp.y = tjTempTrans.pos.y;
