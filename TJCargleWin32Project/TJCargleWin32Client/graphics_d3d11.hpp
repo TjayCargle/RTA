@@ -1,7 +1,8 @@
 #pragma once
 #include "graphics.h"
+#include "../DDSTextureLoader.h"
 #include "window.h"
-#include "../Teddy_D.h"
+
 
 
 #include <d2d1_2.h>
@@ -11,19 +12,20 @@
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
-VERTEX GPUSideVertexBuffer[1024];
+ID3D11Buffer * GPUSideVertexBuffer = nullptr;
+ID3D11Buffer * GPUSideIndexBuffer = nullptr;
+ID3D11Buffer * GPUSideConstantBuffer = nullptr;
+ID3D11SamplerState * m_sampler;
 TJMatrix camera;
 TJMatrix view;
 TJMatrix proj;
+TJMVPBuffer myCVPbuffer;
 int gridVertCount;
 bool AutoAnimate = true;
-int animationFrameNum = 0;
+std::vector<int> animationFrameNum;
 std::vector<VERTEX> gridVerts;
-std::vector<Mesh> myMeshes;
-std::vector<ID3D11Buffer *> otherVertexBuffer;
-std::vector<ID3D11Buffer *> boneVertexBuffer;
-std::vector<ID3D11Buffer *> jointVertexBuffer;
-std::vector<ID3D11Buffer *> otherIndexBuffer;
+std::vector<Mesh *> myMeshes;
+
 std::vector<int> myFrameNumbers;
 namespace
 {
@@ -58,7 +60,7 @@ namespace fsgd
 
 			ID3D11DeviceContext* operator->() { return devcon; }
 
-			virtual void finalize() { devcon->Release(); }
+			virtual void finalize() {	devcon->Release();}
 
 		};
 
@@ -96,15 +98,19 @@ namespace fsgd
 		ID3D11Device *dev;
 		IDXGISwapChain *swapchain;
 		ID3D11Buffer *default_vert_buffer;
-
+		ID3D11Texture2D	*	m_texture2d;
+		ID3D11Texture2D	*	m_texture2d2;
+		ID3D11ShaderResourceView *	m_shaderView;
+		ID3D11ShaderResourceView *	m_shaderView2;
+		ID3D11SamplerState *		m_sampleState;
 		d3d11_context_t d3d11_context;
 	public:
 
 		void UpdateGrid();
-		void UpdateMesh(Mesh someMesh, int bufferIndex, int frameNumber);
-		void UpdateTexture(Mesh someMesh, int bufferIndex, int frameNumber);
-		void UpdateBones(Mesh someMesh, int bufferIndex, int frameNumber);
-		void UpdateJoints(Mesh someMesh, int bufferIndex, int frameNumber);
+		void UpdateMesh(Mesh * someMesh, int bufferIndex, int frameNumber);
+		void UpdateTexture(Mesh * someMesh);
+		void UpdateBones(Mesh *someMesh, int bufferIndex, int frameNumber);
+		void UpdateJoints(Mesh * someMesh, int bufferIndex, int frameNumber);
 		void initialize(window*);
 		void finalize();
 		context_t* get_context() { return &d3d11_context; }
@@ -269,7 +275,7 @@ namespace fsgd
 		rasterDesc.DepthBias = 0;
 		rasterDesc.DepthBiasClamp = 0.0f;
 		rasterDesc.DepthClipEnable = true;
-		rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
+		rasterDesc.FillMode = D3D11_FILL_SOLID;
 		rasterDesc.FrontCounterClockwise = true;
 		rasterDesc.MultisampleEnable = false;
 		rasterDesc.ScissorEnable = false;
@@ -287,7 +293,7 @@ namespace fsgd
 		rasterDesc.DepthBias = 0;
 		rasterDesc.DepthBiasClamp = 0.0f;
 		rasterDesc.DepthClipEnable = true;
-		rasterDesc.FillMode = D3D11_FILL_SOLID;
+		rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
 		rasterDesc.FrontCounterClockwise = true;
 		rasterDesc.MultisampleEnable = false;
 		rasterDesc.ScissorEnable = false;
@@ -325,6 +331,8 @@ namespace fsgd
 		d3d11_context.finalize();
 		dev->Release();
 		swapchain->Release();
+		GPUSideVertexBuffer->Release();
+	
 	}
 
 	void d3d11_device_t::init_shaders_and_input_layout()
@@ -339,41 +347,25 @@ namespace fsgd
 		D3D11_INPUT_ELEMENT_DESC ied[] =
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D10_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D10_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D10_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		};
 
-		d3d11_device->CreateInputLayout(ied, 2, VS->GetBufferPointer(), VS->GetBufferSize(), &default_pipeline.input_layout);
+		d3d11_device->CreateInputLayout(ied, 4, VS->GetBufferPointer(), VS->GetBufferSize(), &default_pipeline.input_layout);
+
+	
+		CD3D11_BUFFER_DESC constantBufferDesc(sizeof(TJMVPBuffer), D3D11_BIND_CONSTANT_BUFFER);
+	
+		dev->CreateBuffer(&constantBufferDesc,nullptr,&GPUSideConstantBuffer);
 	}
 
 	void d3d11_device_t::init_default_graphics()
 	{
 		camera.SetAsIdentiy();
-		view.SetAsViewMatrix();
-		proj.SetAsProjectionMatrix(0.1, 10.0, (1280 / 720), 90);
-		/*	VERTEX verts[] =
-			{
-				{ -1.0f, -1.0f, 0.0f, blue },
-				{ 1.0f, -1.0f, 0.0f, blue },
-				{ -1.0f, 1.0f, 0.0f, blue },
-
-				{ -1.0f, 1.0f, 0.0f, blue },
-				{ 1.0f, -1.0f, 0.0f, blue },
-				{ 1.0f, 1.0f, 0.0f, blue }
-			};*/
-		std::vector<VERTEX> verts;
-		VERTEX v1 = { -1,-1,0,1, blue };
-		VERTEX v2 = { 1,-1,0,1, blue };
-		VERTEX v3 = { -1,1,0,1, blue };
-		VERTEX v4 = { -1,1,0,1, blue };
-		VERTEX v5 = { 1,-1,0,1, blue };
-		VERTEX v6 = { 1,1,0,1, blue };
-		//	verts.push_back(v1);
-		//	verts.push_back(v2);
-		//	verts.push_back(v3);
-		//	verts.push_back(v4);
-		//	verts.push_back(v5);
-		//	verts.push_back(v6);
-
+		view.SetAsViewMatrix(camera);
+		//proj.SetAsProjectionMatrix(0.1, 10.0, (1280 / 720), 180);
+	
 		for (float i = -0.5; i < 0.5; i += 0.1)
 		{
 			TJVertex temp;
@@ -384,40 +376,13 @@ namespace fsgd
 			StartPoint.z = -0.5;
 			StartPoint.color = green;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
 			VERTEX EndPoint;
 			EndPoint.x = i;
 			EndPoint.y = 0;
 			EndPoint.z = 0.5;
 			EndPoint.color = green;
 
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
-
+			
 			gridVerts.push_back(StartPoint);
 			gridVerts.push_back(EndPoint);
 
@@ -425,38 +390,9 @@ namespace fsgd
 			StartPoint.y = 0;
 			StartPoint.z = i;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
-
 			EndPoint.x = 0.5;
 			EndPoint.y = 0;
 			EndPoint.z = i;
-
-
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
 
 			gridVerts.push_back(StartPoint);
 			gridVerts.push_back(EndPoint);
@@ -484,11 +420,24 @@ namespace fsgd
 	void d3d11_device_t::UpdateGrid()
 	{
 		int count = 0;
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirCam, TJMatrix::TJM2Dir(camera));
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirView, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&myCVPbuffer.dirCam))));
+		DirectX::XMMATRIX perspectiveMatrix = DirectX::XMMatrixPerspectiveFovLH(3.14159265*0.25f,(1280 / 720),	0.01f,100.0f		);	
+		DirectX::XMMATRIX orientationMatrix = DirectX::XMMatrixIdentity(); //XMLoadFloat4x4(&orientation);
+
+		DirectX::XMStoreFloat4x4(
+			&myCVPbuffer.dirProj,
+			XMMatrixTranspose(perspectiveMatrix * orientationMatrix)
+		);
+
+		//myCVPbuffer.tjModel = camera;//TJMatrix::CreateIdentiyMatrix();
+		//myCVPbuffer.tjView = view.CreateViewMatrix(camera);
+	
+	
 		for (float i = -0.5; i < 0.5; i += 0.1)
 		{
 			if (count >= gridVerts.size())
 				break;
-			TJVertex temp;
 
 			VERTEX StartPoint;
 			StartPoint.x = i;
@@ -496,82 +445,24 @@ namespace fsgd
 			StartPoint.z = -0.5;
 			StartPoint.color = green;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
 			VERTEX EndPoint;
 			EndPoint.x = i;
 			EndPoint.y = 0;
 			EndPoint.z = 0.5;
 			EndPoint.color = green;
 
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
-
 			gridVerts[count] = StartPoint;
 			count++;
 			gridVerts[count] = EndPoint;
 			count++;
 
-
 			StartPoint.x = -0.5f;
 			StartPoint.y = 0;
 			StartPoint.z = i;
 
-			temp.pos.x = StartPoint.x;
-			temp.pos.y = StartPoint.y;
-			temp.pos.z = StartPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			StartPoint.x = temp.pos.x;
-			StartPoint.y = temp.pos.y;
-			StartPoint.z = temp.pos.z;
-			StartPoint.w = temp.pos.w;
-
 			EndPoint.x = 0.5;
 			EndPoint.y = 0;
 			EndPoint.z = i;
-
-
-			temp.pos.x = EndPoint.x;
-			temp.pos.y = EndPoint.y;
-			temp.pos.z = EndPoint.z;
-			temp.pos.w = 1;
-
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
-
-			EndPoint.x = temp.pos.x;
-			EndPoint.y = temp.pos.y;
-			EndPoint.z = temp.pos.z;
-			EndPoint.w = temp.pos.w;
 
 			gridVerts[count] = StartPoint;
 			count++;
@@ -593,277 +484,158 @@ namespace fsgd
 
 	}
 
-	void d3d11_device_t::UpdateMesh(Mesh someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateMesh(Mesh * someMesh, int bufferIndex, int frameNumber)
 	{
 		int count = 0;
-		std::vector<std::vector<VTriangle>> itsTriangles = someMesh.myTriangles;
+		std::vector<std::vector<VTriangle>> itsTriangles = someMesh->myTriangles;
 		std::vector<VERTEX> vertexVector;
-		int j = 0;
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
-		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
-			{
-				if (count >= gridVerts.size())
-					break;
+	
+		//myCVPbuffer.tjModel = camera;
+		//myCVPbuffer.tjView = view.CreateViewMatrix(camera);
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirCam, TJMatrix::TJM2Dir(camera));
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirView, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&myCVPbuffer.dirCam))));
+		DirectX::XMMATRIX perspectiveMatrix = DirectX::XMMatrixPerspectiveFovLH(3.14159265*0.25f, (1280 / 720), 0.01f, 100.0f);
+		DirectX::XMMATRIX orientationMatrix = DirectX::XMMatrixIdentity(); //XMLoadFloat4x4(&orientation);
 
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, camera);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, view);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, proj);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, camera);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, view);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, proj);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, camera);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, view);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, proj);
-
-
-			}
-		}
-
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
-		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
-			{
-				VERTEX temp;
-				temp.color = bufferIndex == 0 ? white : yellow;
-
-
-				temp.x = someMesh.myTriangles[j][i].a.pos.x;
-				temp.y = someMesh.myTriangles[j][i].a.pos.y;
-				temp.z = someMesh.myTriangles[j][i].a.pos.z;
-				temp.w = someMesh.myTriangles[j][i].a.pos.w;
-				vertexVector.push_back(temp);
-
-				temp.x = someMesh.myTriangles[j][i].b.pos.x;
-				temp.y = someMesh.myTriangles[j][i].b.pos.y;
-				temp.z = someMesh.myTriangles[j][i].b.pos.z;
-				temp.w = someMesh.myTriangles[j][i].b.pos.w;
-				vertexVector.push_back(temp);
-
-				temp.x = someMesh.myTriangles[j][i].c.pos.x;
-				temp.y = someMesh.myTriangles[j][i].c.pos.y;
-				temp.z = someMesh.myTriangles[j][i].c.pos.z;
-				temp.w = someMesh.myTriangles[j][i].c.pos.w;
-				vertexVector.push_back(temp);
-
-			}
-		}
-		D3D11_BUFFER_DESC bd;
-		ZeroMemory(&bd, sizeof(bd));
-
-		bd.Usage = D3D11_USAGE_DYNAMIC;
-		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
-		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-		if (otherVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &otherVertexBuffer[bufferIndex]);
-
-		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(otherVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(otherVertexBuffer[bufferIndex], NULL);
-
-		D3D11_BUFFER_DESC bd2;
-		ZeroMemory(&bd2, sizeof(bd2));
-
-		bd2.Usage = D3D11_USAGE_DYNAMIC;
-		bd2.ByteWidth = sizeof(unsigned int) * someMesh.indexBuffer.size();
-		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (otherIndexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
-
-		D3D11_MAPPED_SUBRESOURCE ms2;
-		d3d11_context->Map(otherIndexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-		memcpy(ms2.pData, someMesh.indexBuffer.data(), sizeof(unsigned int) * someMesh.indexBuffer.size());
-		d3d11_context->Unmap(otherIndexBuffer[bufferIndex], NULL);
-
-	}
-	void d3d11_device_t::UpdateTexture(Mesh someMesh, int bufferIndex, int frameNumber)
-	{
-		int count = 0;
-		std::vector<std::vector<VTriangle>> itsTriangles = someMesh.myTriangles;
-		std::vector<VERTEX> vertexVector;
-		int j = 0;
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
-		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
-			{
-				if (count >= gridVerts.size())
-					break;
-
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, camera);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, view);
-				someMesh.myTriangles[j][i].a = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].a, proj);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, camera);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, view);
-				someMesh.myTriangles[j][i].b = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].b, proj);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, camera);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, view);
-				someMesh.myTriangles[j][i].c = TJMatrix::Vector_Matrix_Multiply(someMesh.myTriangles[j][i].c, proj);
-
-
-			}
-		}
-
-		//	for (int j = 0; j < someMesh.myTriangles.size(); j++)
-		{
-			for (int i = 0; i < someMesh.myTriangles[j].size(); i++)
-			{
-				VERTEX temp;
-				temp.color = bufferIndex == 0 ? white : yellow;
-				if (someMesh.name == "Teddy")
-				{
-					TJColor tjtemp;
-					const unsigned int * teddyPixels = Teddy_D_pixels;
-					TJVertex A = someMesh.myTriangles[j][i].a;
-					TJVertex B = someMesh.myTriangles[j][i].b;
-					TJVertex C = someMesh.myTriangles[j][i].c;
-
-
-					float x = A.u * Teddy_D_width;
-					float width = Teddy_D_width;
-					float y = A.v * Teddy_D_height;
-					int finalColor = y * width + x;
-
-					tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
-					temp.color.r = tjtemp.r;
-					temp.color.g = tjtemp.g;
-					temp.color.b = tjtemp.b;
-					temp.color.a = tjtemp.a;
-
-					temp.x = someMesh.myTriangles[j][i].a.pos.x;
-					temp.y = someMesh.myTriangles[j][i].a.pos.y;
-					temp.z = someMesh.myTriangles[j][i].a.pos.z;
-					temp.w = someMesh.myTriangles[j][i].a.pos.w;
-					vertexVector.push_back(temp);
-
-
-					x = B.u * Teddy_D_width;
-					y = B.v * Teddy_D_height;
-					finalColor = y * width + x;
-					tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
-
-					temp.color.r = tjtemp.r;
-					temp.color.g = tjtemp.g;
-					temp.color.b = tjtemp.b;
-					temp.color.a = tjtemp.a;
-
-					temp.x = someMesh.myTriangles[j][i].b.pos.x;
-					temp.y = someMesh.myTriangles[j][i].b.pos.y;
-					temp.z = someMesh.myTriangles[j][i].b.pos.z;
-					temp.w = someMesh.myTriangles[j][i].b.pos.w;
-					vertexVector.push_back(temp);
-
-					x = C.u * Teddy_D_width;
-					y = C.v * Teddy_D_height;
-					finalColor = y * width + x;
-					tjtemp.CreateFromUint(tjtemp.BGRA2ARGB(teddyPixels[finalColor]));
-
-					temp.color.r = tjtemp.r;
-					temp.color.g = tjtemp.g;
-					temp.color.b = tjtemp.b;
-					temp.color.a = tjtemp.a;
-
-					temp.x = someMesh.myTriangles[j][i].c.pos.x;
-					temp.y = someMesh.myTriangles[j][i].c.pos.y;
-					temp.z = someMesh.myTriangles[j][i].c.pos.z;
-					temp.w = someMesh.myTriangles[j][i].c.pos.w;
-					vertexVector.push_back(temp);
-				}
-				else
-				{
-					temp.x = someMesh.myTriangles[j][i].a.pos.x;
-					temp.y = someMesh.myTriangles[j][i].a.pos.y;
-					temp.z = someMesh.myTriangles[j][i].a.pos.z;
-					temp.w = someMesh.myTriangles[j][i].a.pos.w;
-					vertexVector.push_back(temp);
-
-					temp.x = someMesh.myTriangles[j][i].b.pos.x;
-					temp.y = someMesh.myTriangles[j][i].b.pos.y;
-					temp.z = someMesh.myTriangles[j][i].b.pos.z;
-					temp.w = someMesh.myTriangles[j][i].b.pos.w;
-					vertexVector.push_back(temp);
-
-					temp.x = someMesh.myTriangles[j][i].c.pos.x;
-					temp.y = someMesh.myTriangles[j][i].c.pos.y;
-					temp.z = someMesh.myTriangles[j][i].c.pos.z;
-					temp.w = someMesh.myTriangles[j][i].c.pos.w;
-					vertexVector.push_back(temp);
-				}
-			}
-		}
-		D3D11_BUFFER_DESC bd;
-		ZeroMemory(&bd, sizeof(bd));
-
-		bd.Usage = D3D11_USAGE_DYNAMIC;
-		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
-		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-		if (otherVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &otherVertexBuffer[bufferIndex]);
-
-		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(otherVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(otherVertexBuffer[bufferIndex], NULL);
-
-		D3D11_BUFFER_DESC bd2;
-		ZeroMemory(&bd2, sizeof(bd2));
-
-		bd2.Usage = D3D11_USAGE_DYNAMIC;
-		bd2.ByteWidth = sizeof(unsigned int) * someMesh.indexBuffer.size();
-		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (otherIndexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd2, NULL, &otherIndexBuffer[bufferIndex]);
-
-		D3D11_MAPPED_SUBRESOURCE ms2;
-		d3d11_context->Map(otherIndexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-		memcpy(ms2.pData, someMesh.indexBuffer.data(), sizeof(unsigned int) * someMesh.indexBuffer.size());
-		d3d11_context->Unmap(otherIndexBuffer[bufferIndex], NULL);
-
-	}
-
-	void d3d11_device_t::UpdateBones(Mesh someMesh, int bufferIndex, int frameNumber)
-	{
-		int count = 0;
-
-		std::vector<VERTEX> vertexVector;
-		//for (int j = 0; j < someMesh.boneVectorSize; j++)
-		//{
+		DirectX::XMStoreFloat4x4(
+			&myCVPbuffer.dirProj,
+			XMMatrixTranspose(perspectiveMatrix * orientationMatrix)
+		);
+		//myCVPbuffer.tjProj = proj;
 		int j = frameNumber;
-		for (int i = 0; i < someMesh.bones[j].size(); i++)
+		if (j >= someMesh->myTriangles.size())
+			return;
+		//for (int j = 0; j < someMesh->myTriangles.size(); j++)
+		{
+			for (int i = 0; i < someMesh->myTriangles[j].size(); i++)
+			{
+				VERTEX temp;
+				temp.color = bufferIndex == 0 ? white : yellow;
+			
+
+				temp.x =itsTriangles[j][i].a.pos.x;
+				temp.y =itsTriangles[j][i].a.pos.y;
+				temp.z =itsTriangles[j][i].a.pos.z;
+				temp.w =itsTriangles[j][i].a.pos.w;
+				temp.u = itsTriangles[j][i].a.u;
+				temp.v = itsTriangles[j][i].a.v;
+				temp.nx = itsTriangles[j][i].a.normal.x;
+				temp.ny = itsTriangles[j][i].a.normal.y;
+				temp.nz = itsTriangles[j][i].a.normal.z;
+				vertexVector.push_back(temp);
+
+				temp.x = itsTriangles[j][i].b.pos.x;
+				temp.y = itsTriangles[j][i].b.pos.y;
+				temp.z = itsTriangles[j][i].b.pos.z;
+				temp.w = itsTriangles[j][i].b.pos.w;
+				temp.u = itsTriangles[j][i].b.u;
+				temp.v = itsTriangles[j][i].b.v;
+				temp.nx = itsTriangles[j][i].b.normal.x;
+				temp.ny = itsTriangles[j][i].b.normal.y;
+				temp.nz = itsTriangles[j][i].b.normal.z;
+				vertexVector.push_back(temp);
+
+				temp.x =itsTriangles[j][i].c.pos.x;
+				temp.y =itsTriangles[j][i].c.pos.y;
+				temp.z =itsTriangles[j][i].c.pos.z;
+				temp.w =itsTriangles[j][i].c.pos.w;
+				temp.u = itsTriangles[j][i].c.u;
+				temp.v = itsTriangles[j][i].c.v;
+				temp.nx = itsTriangles[j][i].c.normal.x;
+				temp.ny = itsTriangles[j][i].c.normal.y;
+				temp.nz = itsTriangles[j][i].c.normal.z;
+				vertexVector.push_back(temp);
+
+			}
+		}
+		D3D11_BUFFER_DESC bd;
+		ZeroMemory(&bd, sizeof(bd));
+
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		//if (GPUSideVertexBuffer == nullptr)
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
+			if (GPUSideVertexBuffer == nullptr)
+				return;
+		D3D11_MAPPED_SUBRESOURCE ms;
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
+
+		D3D11_BUFFER_DESC bd2;
+		ZeroMemory(&bd2, sizeof(bd2));
+
+		bd2.Usage = D3D11_USAGE_DYNAMIC;
+		bd2.ByteWidth = sizeof(unsigned int) * someMesh->indexBuffer.size();
+		bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd2.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		//if (GPUSideIndexBuffer == nullptr)
+			dev->CreateBuffer(&bd2, NULL, &GPUSideIndexBuffer);
+
+		D3D11_MAPPED_SUBRESOURCE ms2;
+		d3d11_context->Map(GPUSideIndexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
+		memcpy(ms2.pData, someMesh->indexBuffer.data(), sizeof(unsigned int) * someMesh->indexBuffer.size());
+		d3d11_context->Unmap(GPUSideIndexBuffer, NULL);
+
+	}
+	void d3d11_device_t::UpdateTexture(Mesh * someMesh)
+	{
+		if (someMesh->name == "Teddy" && m_texture2d == nullptr)
+		{
+			HRESULT result;
+			result = CreateDDSTextureFromFile(dev, L"../Teddy_D.dds", (ID3D11Resource**)m_texture2d, &m_shaderView);
+		}
+		else if (someMesh->name == "Mage" && m_texture2d2 == nullptr)
+		{
+			HRESULT result;
+			result = CreateDDSTextureFromFile(dev, L"../Mage_D.dds", (ID3D11Resource**)m_texture2d2, &m_shaderView2);
+		}
+	}
+
+	void d3d11_device_t::UpdateBones(Mesh * someMesh, int bufferIndex, int frameNumber)
+	{
+		int count = 0;
+		//myCVPbuffer.tjModel = camera;
+		//myCVPbuffer.tjView = view.CreateViewMatrix(camera);
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirCam, TJMatrix::TJM2Dir(camera));
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirView, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&myCVPbuffer.dirCam))));
+		DirectX::XMMATRIX perspectiveMatrix = DirectX::XMMatrixPerspectiveFovLH(3.14159265*0.25f, (1280 / 720), 0.01f, 100.0f);
+		DirectX::XMMATRIX orientationMatrix = DirectX::XMMatrixIdentity(); //XMLoadFloat4x4(&orientation);
+
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirProj,XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
+		std::vector<VERTEX> vertexVector;
+		//for (int j = 0; j < someMesh->boneVectorSize; j++)
+		//{
+		if (someMesh->bones.size() < frameNumber || someMesh->bones.size() == 0)
+			return;
+		int j = frameNumber;
+		for (int i = 0; i < someMesh->bones[j].size(); i++)
 		{
 			if (count >= gridVerts.size())
 				break;
 
 			TJVertex temp;
-			temp.pos.x = someMesh.bones[j][i].x;
-			temp.pos.y = someMesh.bones[j][i].y;
-			temp.pos.z = someMesh.bones[j][i].z;
+			temp.pos.x = someMesh->bones[j][i].x;
+			temp.pos.y = someMesh->bones[j][i].y;
+			temp.pos.z = someMesh->bones[j][i].z;
+	
 			temp.pos.w = 1;
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, camera);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, view);
-			temp = TJMatrix::Vector_Matrix_Multiply(temp, proj);
+		
 
 
 			TJVertex tjTemp2;
-			int pIndex = someMesh.bones[j][i].parentIndex;
+			int pIndex = someMesh->bones[j][i].parentIndex;
 			if (pIndex != -1)
 			{
 
-				tjTemp2.pos.x = someMesh.bones[j][pIndex].x;
-				tjTemp2.pos.y = someMesh.bones[j][pIndex].y;
-				tjTemp2.pos.z = someMesh.bones[j][pIndex].z;
+				tjTemp2.pos.x = someMesh->bones[j][pIndex].x;
+				tjTemp2.pos.y = someMesh->bones[j][pIndex].y;
+				tjTemp2.pos.z = someMesh->bones[j][pIndex].z;
 				tjTemp2.pos.w = 1;
-				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, camera);
-				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, view);
-				tjTemp2 = TJMatrix::Vector_Matrix_Multiply(tjTemp2, proj);
-
-
+		
 
 				VERTEX temp2;
 				temp2.color = bufferIndex == 0 ? yellow : white;
@@ -871,12 +643,18 @@ namespace fsgd
 				temp2.y = temp.pos.y;
 				temp2.z = temp.pos.z;
 				temp2.w = temp.pos.w;
+				temp2.nx = temp.normal.x;
+				temp2.ny = temp.normal.y;
+				temp2.nz = temp.normal.z;
 				vertexVector.push_back(temp2);
 
 				temp2.x = tjTemp2.pos.x;
 				temp2.y = tjTemp2.pos.y;
 				temp2.z = tjTemp2.pos.z;
 				temp2.w = tjTemp2.pos.w;
+				temp2.nx = tjTemp2.normal.x;
+				temp2.ny = tjTemp2.normal.y;
+				temp2.nz = tjTemp2.normal.z;
 				vertexVector.push_back(temp2);
 			}
 		}
@@ -889,48 +667,50 @@ namespace fsgd
 		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (boneVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &boneVertexBuffer[bufferIndex]);
+		//if (GPUSideVertexBuffer == nullptr)
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(boneVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(boneVertexBuffer[bufferIndex], NULL);
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
 
 
 	}
-	void d3d11_device_t::UpdateJoints(Mesh someMesh, int bufferIndex, int frameNumber)
+	void d3d11_device_t::UpdateJoints(Mesh * someMesh, int bufferIndex, int frameNumber)
 	{
 		int count = 0;
+		//myCVPbuffer.tjModel = camera;
+		//myCVPbuffer.tjView = view.CreateViewMatrix(camera);
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirCam, TJMatrix::TJM2Dir(camera));
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirView, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&myCVPbuffer.dirCam))));
+		DirectX::XMMATRIX perspectiveMatrix = DirectX::XMMatrixPerspectiveFovLH(3.14159265*0.25f, (1280 / 720), 0.01f, 100.0f);
+		DirectX::XMMATRIX orientationMatrix = DirectX::XMMatrixIdentity(); //XMLoadFloat4x4(&orientation);
 
+		DirectX::XMStoreFloat4x4(&myCVPbuffer.dirProj, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 		std::vector<VERTEX> vertexVector;
 		int j = frameNumber;
-		//	for (int j = 0; j < someMesh.boneVectorSize; j++)
+		//	for (int j = 0; j < someMesh->boneVectorSize; j++)
 		{
-			for (int i = 0; i < someMesh.bones[j].size(); i += 2)
+			for (int i = 0; i < someMesh->bones[j].size() && j < someMesh->bones.size(); i += 2)
 			{
 				if (count >= gridVerts.size())
 					break;
-				//if (i + 1 < someMesh.bones.size())
+				//if (i + 1 < someMesh->bones.size())
 				{
 					TJVertex tjTemp;
-					tjTemp.pos.x = someMesh.bones[j][i].x;
-					tjTemp.pos.y = someMesh.bones[j][i].y;
-					tjTemp.pos.z = someMesh.bones[j][i].z;
+					tjTemp.pos.x = someMesh->bones[j][i].x;
+					tjTemp.pos.y = someMesh->bones[j][i].y;
+					tjTemp.pos.z = someMesh->bones[j][i].z;
 					tjTemp.pos.w = 1;
-					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, camera);
-					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, view);
-					tjTemp = TJMatrix::Vector_Matrix_Multiply(tjTemp, proj);
+				
 
 					TJVertex tjTempTrans;
-					tjTempTrans.pos.x = someMesh.bones[j][i].x + 0.04f;
-					tjTempTrans.pos.y = someMesh.bones[j][i].y + 0.05f;
-					tjTempTrans.pos.z = someMesh.bones[j][i].z + 0.03f;
+					tjTempTrans.pos.x = someMesh->bones[j][i].x + 0.004f;
+					tjTempTrans.pos.y = someMesh->bones[j][i].y + 0.005f;
+					tjTempTrans.pos.z = someMesh->bones[j][i].z + 0.003f;
 					tjTempTrans.pos.w = 1;
-					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, camera);
-					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, view);
-					tjTempTrans = TJMatrix::Vector_Matrix_Multiply(tjTempTrans, proj);
-
+			
 
 					VERTEX temp;
 					temp.color = red;
@@ -938,6 +718,9 @@ namespace fsgd
 					temp.y = tjTemp.pos.y;
 					temp.z = tjTemp.pos.z;
 					temp.w = tjTemp.pos.w;
+					temp.nx = tjTemp.normal.x;
+					temp.ny = tjTemp.normal.y;
+					temp.nz = tjTemp.normal.z;
 					vertexVector.push_back(temp);
 					temp.x = tjTempTrans.pos.x;
 					vertexVector.push_back(temp);
@@ -948,6 +731,9 @@ namespace fsgd
 					temp.y = tjTemp.pos.y;
 					temp.z = tjTemp.pos.z;
 					temp.w = tjTemp.pos.w;
+					temp.nx = tjTemp.normal.x;
+					temp.ny = tjTemp.normal.y;
+					temp.nz = tjTemp.normal.z;
 					vertexVector.push_back(temp);
 					temp.y = tjTempTrans.pos.y;
 					vertexVector.push_back(temp);
@@ -958,6 +744,9 @@ namespace fsgd
 					temp.y = tjTemp.pos.y;
 					temp.z = tjTemp.pos.z;
 					temp.w = tjTemp.pos.w;
+					temp.nx = tjTemp.normal.x;
+					temp.ny = tjTemp.normal.y;
+					temp.nz = tjTemp.normal.z;
 					vertexVector.push_back(temp);
 					temp.x = tjTempTrans.pos.x;
 					temp.y = tjTempTrans.pos.y;
@@ -976,13 +765,13 @@ namespace fsgd
 		bd.ByteWidth = sizeof(VERTEX) * vertexVector.size();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		if (jointVertexBuffer[bufferIndex] == nullptr)
-			dev->CreateBuffer(&bd, NULL, &jointVertexBuffer[bufferIndex]);
+		//if (GPUSideVertexBuffer == nullptr)
+			dev->CreateBuffer(&bd, NULL, &GPUSideVertexBuffer);
 
 		D3D11_MAPPED_SUBRESOURCE ms;
-		d3d11_context->Map(jointVertexBuffer[bufferIndex], NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		d3d11_context->Map(GPUSideVertexBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, vertexVector.data(), sizeof(VERTEX) * vertexVector.size());
-		d3d11_context->Unmap(jointVertexBuffer[bufferIndex], NULL);
+		d3d11_context->Unmap(GPUSideVertexBuffer, NULL);
 
 
 
@@ -1009,7 +798,7 @@ namespace fsgd
 		// Update prior to rendering
 		////////////////////////////////////////////
 
-		fsgd::d3d11_device.UpdateGrid();
+		
 
 
 		auto devcon = d3d11_device.d3d11_context.devcon;
@@ -1032,63 +821,123 @@ namespace fsgd
 
 		UINT stride = sizeof(VERTEX);
 		UINT offset = 0;
+		fsgd::d3d11_device.UpdateGrid();
+		//myCVPbuffer.tjModel = TJMatrix::CreateTransposedMatrix(camera);
+		//myCVPbuffer.tjView = TJMatrix::CreateTransposedMatrix(view);
+		//myCVPbuffer.tjProj = TJMatrix::CreateTransposedMatrix(proj);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
 		devcon->IASetVertexBuffers(0, 1, &d3d11_device.default_vert_buffer, &stride, &offset);
-
 		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
-
+		devcon->IASetInputLayout(d3d11_device.default_pipeline.input_layout);
+		devcon->VSSetShader(d3d11_device.default_pipeline.vertex_shader, nullptr, 0);
+		devcon->VSSetConstantBuffers(0, 1, &GPUSideConstantBuffer);
+		constexpr size_t alignment = alignof(TJMatrix);
 		devcon->Draw(gridVertCount, 0);
-		for (int i = 0; i < myMeshes.size(); i++)
-		{
-		
-			fsgd::d3d11_device.UpdateMesh(myMeshes[i], i, myFrameNumbers[i]);
-
-			devcon->IASetVertexBuffers(0, 1, &otherVertexBuffer[i], &stride, &offset);
-			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			devcon->IASetIndexBuffer(otherIndexBuffer[i], DXGI_FORMAT_R32_UINT, 0);
-			devcon->DrawIndexed(myMeshes[i].indexBuffer.size() * 4, 0, 0);
-
-			if (AutoAnimate)
-			{
-				fsgd::d3d11_device.UpdateBones(myMeshes[i], i, myFrameNumbers[i]);
-			}
-			else
-			{
-				if (animationFrameNum >= myMeshes[i].bones.size())
-					animationFrameNum = 0;
-				if (animationFrameNum < 0)
-					animationFrameNum = myMeshes[i].bones.size() -1;
-				fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum);
-			}
-
-			devcon->IASetVertexBuffers(0, 1, &boneVertexBuffer[i], &stride, &offset);
-			devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
-			for (int j = 0; j < myMeshes[i].boneVectorSize; j++)
-				devcon->Draw(myMeshes[i].bones[j].size() * 2, 0);
-
-		
-			if (AutoAnimate)
-			{
-				fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, myFrameNumbers[i]);
-			}
-			else
-			{
-				if (animationFrameNum >= myMeshes[i].bones.size())
-					animationFrameNum = 0;
-				if (animationFrameNum < 0)
-					animationFrameNum = myMeshes[i].bones.size() - 1;
-				fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum);
-			}
-			
-			devcon->IASetVertexBuffers(0, 1, &jointVertexBuffer[i], &stride, &offset);
-			for (int j = 0; j < myMeshes[i].boneVectorSize; j++)
-				devcon->Draw(myMeshes[i].bones[j].size() * 6, 0);
-
-			myFrameNumbers[i]++;
-			if (myFrameNumbers[i] >= myMeshes[i].bones.size())
-				myFrameNumbers[i] = 0;
+	for (int i = 0; i < myMeshes.size(); i++)
+	{
 	
-			fsgd::d3d11_device.UpdateTexture(myMeshes[i], i, myFrameNumbers[i]);
+		fsgd::d3d11_device.UpdateMesh(myMeshes[i], i, myFrameNumbers[i]);
+
+		//myCVPbuffer.dirCam = TJMatrix::CreateTransposedMatrix(camera.CreateIdentiyMatrix());
+		//myCVPbuffer.dirCam = TJMatrix::CreateTransposedMatrix(view);
+		//myCVPbuffer.tjProj = TJMatrix::CreateTransposedMatrix(proj);
+
+		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+
+		ID3D11ShaderResourceView* texViews[] = { nullptr };
+		D3D11_SAMPLER_DESC m_sampDesc;
+		if (myMeshes[i]->name == "Teddy")
+		{
+			*texViews = fsgd::d3d11_device.m_shaderView;
+			fsgd::d3d11_device.UpdateTexture(myMeshes[i]);
+			devcon->PSSetShaderResources(0, 1, texViews);
+
+
+			ZeroMemory(&m_sampDesc, sizeof(D3D11_SAMPLER_DESC));
+			m_sampDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+			m_sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+
+
+			fsgd::d3d11_device->CreateSamplerState(&m_sampDesc, &m_sampler);
+
+			devcon->PSSetSamplers(0, 1, &m_sampler);
 		}
+		else if (myMeshes[i]->name == "Mage")
+		{
+			*texViews = fsgd::d3d11_device.m_shaderView2;
+			fsgd::d3d11_device.UpdateTexture(myMeshes[i]);
+			devcon->PSSetShaderResources(0, 1, texViews);
+
+
+			ZeroMemory(&m_sampDesc, sizeof(D3D11_SAMPLER_DESC));
+			m_sampDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+			m_sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			m_sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+
+
+			fsgd::d3d11_device->CreateSamplerState(&m_sampDesc, &m_sampler);
+
+			devcon->PSSetSamplers(0, 1, &m_sampler);
+		}
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
+		devcon->DrawIndexed(myMeshes[i]->indexBuffer.size() * 4, 0, 0);
+		*texViews = nullptr;
+		m_sampler = nullptr;
+		devcon->PSSetShaderResources(0, 1, texViews);
+		devcon->PSSetSamplers(0, 1, &m_sampler);
+		if (AutoAnimate)
+		{
+			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, myFrameNumbers[i]);
+		}
+		else
+		{
+			if (animationFrameNum[i] >= myMeshes[i]->bones.size())
+				animationFrameNum[i] = 0;
+			if (animationFrameNum[i] < 0)
+				animationFrameNum[i] = myMeshes[i]->bones.size() -1;
+			fsgd::d3d11_device.UpdateBones(myMeshes[i], i, animationFrameNum[i]);
+		}
+
+		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+		devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
+		for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
+			devcon->Draw(myMeshes[i]->bones[j].size() * 2, 0);
+
+	
+		if (AutoAnimate)
+		{
+			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, myFrameNumbers[i]);
+		}
+		else
+		{
+			if (animationFrameNum[i] >= myMeshes[i]->bones.size())
+				animationFrameNum[i] = 0;
+			if (animationFrameNum[i] < 0)
+				animationFrameNum[i] = myMeshes[i]->bones.size() - 1;
+			fsgd::d3d11_device.UpdateJoints(myMeshes[i], i, animationFrameNum[i]);
+		}
+		
+		devcon->IASetVertexBuffers(0, 1, &GPUSideVertexBuffer, &stride, &offset);
+		devcon->IASetIndexBuffer(GPUSideIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		devcon->UpdateSubresource(GPUSideConstantBuffer, 0, NULL, &myCVPbuffer, 0, 0);
+		for (int j = 0; j < myMeshes[i]->boneVectorSize; j++)
+			devcon->Draw(myMeshes[i]->bones[j].size() * 6, 0);
+
+		myFrameNumbers[i]++;
+		if (myFrameNumbers[i] >= myMeshes[i]->bones.size())
+			myFrameNumbers[i] = 1;
+	
+
+	
+	}
 
 	
 

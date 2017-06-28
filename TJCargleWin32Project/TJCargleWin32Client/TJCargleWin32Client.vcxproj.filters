@@ -24,6 +24,9 @@
     <ClCompile Include="window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\DDSTextureLoader.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3d11_pipeline_desc.h">
@@ -44,10 +47,24 @@
     <ClInclude Include="..\TJStructs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\DDSTextureLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Teddy_Idle.fbx" />
     <None Include="..\Mage_Idle.fbx" />
     <None Include="..\Teddy_Run.fbx" />
+    <None Include="shaders.shader">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\Teddy_D.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Mage_D.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

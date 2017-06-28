@@ -10,17 +10,23 @@ int main(void)
 	double b = 4;
 	TJDEV5LIB::Functions functionExpert;
 	cout << "Controls:" << endl;
-	cout << "Arrow Keys - Move Up Down Left or Right:" << endl;
-	cout << "RShift and LShift, move forward or backward:" << endl;
-	cout << "CTRL keys rotate left and right:" << endl;
-	cout << "Right and Left mouse move up and down:" << endl;
-	cout << "Numpad 4-= Decreese Frame Number:" << endl;
-	cout << "Numpad 5-= Toggles  Animating to the object ir just steooin throught the sciooo:" << endl;
-	cout << "Numpad 6-= Increase Frame Number:" << endl;
+	cout << "Arrow Keys -> Move Up Down Left or Right" << endl;
+	cout << "RShift and LShift-> move forward or backward" << endl;
+	cout << "CTRL keys -> rotate left and right" << endl;
+	cout << "Right and Left mouse -> move up and down" << endl;
+	cout << "Numpad 4-> Decreese Frame Number" << endl;
+	cout << "Numpad 5-> Toggles  Animating to the object" << endl;
+	cout << "Numpad 6-> Increase Frame Number" << endl;
+	cout << "ESC -> removes the Mage" << endl;
+	cout << "Backspace -> removes a Mesh" << endl;
+	cout << "Spacebar -> imports a Mage" << endl;
+	cout << "Enter/Return -> imports a TeddyBear" << endl;
 
 	bool autoRun = true;
-	int animationFrameNumber = 0;
-
+	std::vector<int> animationFrameNumber;
+	int zero = 0;
+	animationFrameNumber.push_back(zero);
+	animationFrameNumber.push_back(zero);
 	functionExpert.SetupFbxManager();
 	functionExpert.setFbxIORoot();
 	functionExpert.setupFbxImporter("../Teddy_Run.fbx");
@@ -28,9 +34,9 @@ int main(void)
 	Mesh * testMesh;
 	testMesh = functionExpert.getMeshFromFbx();
 //	testMesh = functionExpert.LoadMeshAnimationData(testMesh);
-	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.003f);
+	*testMesh = TJMatrix::ScaleMesh(*testMesh, 0.0003f);
 
-	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
+	TJMatrix teddyTrans = TJMatrix::CreateTranslationMatrix(-0.1, 0, 0);
 	*testMesh = TJMatrix::TranslateMesh(*testMesh, teddyTrans);
 	testMesh->name = "Teddy";
 
@@ -50,32 +56,36 @@ int main(void)
 	TJMatrix translationMatrix, tempRotationMatrix, tempWorldMatrix;
 	tempWorldMatrix.SetAsIdentiy();
 
-	AddMeshToVertexList(*testMesh);
+	AddMeshToVertexList(testMesh);
 	functionExpert.setupFbxImporter("../Mage_Idle.fbx");
 	functionExpert.importFbxscene("testScene");
 
-	Mesh testMesh2;
+	Mesh * testMesh2;
 
-	testMesh2 = *functionExpert.getMeshFromFbx();
-	testMesh2.name = "Mage";
+	testMesh2 = functionExpert.getMeshFromFbx();
+	testMesh2->name = "Mage";
 
-	testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
+	*testMesh2 = TJMatrix::ScaleMesh(*testMesh2, 0.009f);
 
-	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
-	testMesh2 = TJMatrix::TranslateMesh(testMesh2, mageTrans);
+	TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.1, 0, 0);
+	*testMesh2 = TJMatrix::TranslateMesh(*testMesh2, mageTrans);
 	AddMeshToVertexList(testMesh2);
 
-	
+	translationMatrix.SetAsTranslation(0, 0.05, 0);
+	tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
+	translationMatrix.SetAsTranslation(0, 0, -0.5);
+	tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
 	while (main_window.pump_events())
 	{
+
 		if (GetAsyncKeyState(VK_UP) & 0x0001)
 		{
-			translationMatrix.SetAsTranslation(0, -0.05, 0);
+			translationMatrix.SetAsTranslation(0, 0.005, 0);
 			tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
 		}
 		if (GetAsyncKeyState(VK_DOWN) & 0x0001)
 		{
-			translationMatrix.SetAsTranslation(0, 0.05, 0);
+			translationMatrix.SetAsTranslation(0, -0.005, 0);
 			tempWorldMatrix = TJMatrix::Matrix_Matrix_Multiply(translationMatrix, tempWorldMatrix);
 		}
 
@@ -127,15 +137,15 @@ int main(void)
 			functionExpert.setupFbxImporter("../Mage_Idle.fbx");
 			functionExpert.importFbxscene("testScene2");
 
-			Mesh testMesh2;
+			Mesh * testMesh2;
 			
-			testMesh2 = *functionExpert.getMeshFromFbx();
-			testMesh2.name = "Mage";
+			testMesh2 = functionExpert.getMeshFromFbx();
+			testMesh2->name = "Mage";
 
-			testMesh2 = TJMatrix::ScaleMesh(testMesh2, 0.09f);
+			*testMesh2 = TJMatrix::ScaleMesh(*testMesh2, 0.09f);
 
 			TJMatrix mageTrans = TJMatrix::CreateTranslationMatrix(0.3, 0, 0);
-			testMesh2 = TJMatrix::TranslateMesh(testMesh2, mageTrans);
+			*testMesh2 = TJMatrix::TranslateMesh(*testMesh2, mageTrans);
 			AddMeshToVertexList(testMesh2);
 		}
 
@@ -144,20 +154,21 @@ int main(void)
 			functionExpert.setupFbxImporter("../Teddy_Run.fbx");
 			functionExpert.importFbxscene("testScene");
 
-			Mesh atestMesh;
+			Mesh * atestMesh;
 
-			atestMesh = *functionExpert.getMeshFromFbx();
-			atestMesh.name = "Teddy";
+			atestMesh = functionExpert.getMeshFromFbx();
+			atestMesh->name = "Teddy";
 
-			atestMesh = TJMatrix::ScaleMesh(atestMesh, 0.003f);
+			*atestMesh = TJMatrix::ScaleMesh(*atestMesh, 0.003f);
 
 			TJMatrix teddytrans = TJMatrix::CreateTranslationMatrix(-0.3, 0, 0);
-			atestMesh = TJMatrix::TranslateMesh(atestMesh, teddytrans);
+			*atestMesh = TJMatrix::TranslateMesh(*atestMesh, teddytrans);
 			AddMeshToVertexList(atestMesh);
 		}
 		if (GetAsyncKeyState(VK_ESCAPE))
 		{
-			RemoveMeshFromVertexList("Mage");
+			//RemoveMeshFromVertexList("Mage");
+			break;
 		}
 		if (GetAsyncKeyState(VK_BACK))
 		{
@@ -167,8 +178,10 @@ int main(void)
 		autoRun = GetAutoBool();
 		if (GetAsyncKeyState(VK_NUMPAD4))
 		{
-			animationFrameNumber--;
-			SetFrameNum(animationFrameNumber);
+			animationFrameNumber[0]--;
+			SetFrameNum(animationFrameNumber[0], 0);
+			animationFrameNumber[1]--;
+			SetFrameNum(animationFrameNumber[1], 0);
 		}
 		if (GetAsyncKeyState(VK_NUMPAD5))
 		{
@@ -179,16 +192,20 @@ int main(void)
 			}
 			else
 			{
-				animationFrameNumber = 0;
-				SetFrameNum(animationFrameNumber);
+				animationFrameNumber[0] = 0;
+				SetFrameNum(animationFrameNumber[0], 0);
+				animationFrameNumber[1] = 0;
+				SetFrameNum(animationFrameNumber[1], 0);
 				autoRun = true;
 				SetAutoBool(autoRun);
 			}
 		}
 		if (GetAsyncKeyState(VK_NUMPAD6))
 		{
-			animationFrameNumber++;
-			SetFrameNum(animationFrameNumber);
+			animationFrameNumber[0]++;
+			SetFrameNum(animationFrameNumber[0], 0);
+			animationFrameNumber[1]++;
+			SetFrameNum(animationFrameNumber[1], 0);
 		}
 
 		

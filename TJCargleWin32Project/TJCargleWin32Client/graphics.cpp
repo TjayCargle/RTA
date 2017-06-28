@@ -18,42 +18,24 @@ TJMatrix GetProj()
 {
 	return proj;
 }
-std::vector<Mesh> GetMeshVertex()
+std::vector<Mesh*> GetMeshVertex()
 {
 	return myMeshes;
 }
-void AddMeshToVertexList(Mesh someMesh)
+void AddMeshToVertexList(Mesh *someMesh)
 {
 	myMeshes.push_back(someMesh);
-	ID3D11Buffer * someBuffer = nullptr;
-	ID3D11Buffer * someOtherBuffer = nullptr;
-	ID3D11Buffer * boneBuffer = nullptr;
-	ID3D11Buffer * jointBuffer = nullptr;
-	otherVertexBuffer.push_back(someBuffer);
-	otherIndexBuffer.push_back(someOtherBuffer);
-	boneVertexBuffer.push_back(boneBuffer);
-	jointVertexBuffer.push_back(jointBuffer);
+
 	myFrameNumbers.push_back(0);
 }
 void RemoveMeshFromVertexList(std::string name2Remove)
 {
 	for (int i = myMeshes.size() - 1; i >= 0; i--)
 	{
-		if (myMeshes[i].name == name2Remove)
+		if (myMeshes[i]->name == name2Remove)
 		{
 		
-				myMeshes.erase(myMeshes.begin() + i);
-		
-				otherVertexBuffer.erase(otherVertexBuffer.begin() + i);	
-		
-				otherIndexBuffer.erase(otherIndexBuffer.begin() + i);
-
-				boneVertexBuffer.erase(boneVertexBuffer.begin() + i);
-
-				myFrameNumbers.erase(myFrameNumbers.begin() + i);
-
-				jointVertexBuffer.erase(jointVertexBuffer.begin() + i);
-			
+				myMeshes.erase(myMeshes.begin() + i);			
 				break;
 		}
 	}
@@ -67,50 +49,34 @@ void RemoveMeshFromVertexList(int index)
 
 			myMeshes.erase(myMeshes.begin() + i);
 
-			otherVertexBuffer.erase(otherVertexBuffer.begin() + i);
-
-			otherIndexBuffer.erase(otherIndexBuffer.begin() + i);
-
-			boneVertexBuffer.erase(boneVertexBuffer.begin() + i);
-
-			myFrameNumbers.erase(myFrameNumbers.begin() + i);
-
-			jointVertexBuffer.erase(jointVertexBuffer.begin() + i);
-
 			break;
 		}
 	}
 }
 void RemoveAllMeshFromVertexList()
 {
-	while (jointVertexBuffer.size() > 0)
+	while (myFrameNumbers.size() > 0)
 	{
 		myMeshes.erase(myMeshes.begin());
-
-		otherVertexBuffer.erase(otherVertexBuffer.begin());
-
-		otherIndexBuffer.erase(otherIndexBuffer.begin());
-
-		boneVertexBuffer.erase(boneVertexBuffer.begin());
+;
 
 		myFrameNumbers.erase(myFrameNumbers.begin());
 
-		jointVertexBuffer.erase(jointVertexBuffer.begin());
 
 	
 	}
 }
-void SetCamera(TJMatrix m)
+void SetCamera(TJMatrix &m)
 {
 	camera = m;
 }
 
-void SetView(TJMatrix m)
+void SetView(TJMatrix &m)
 {
 	view = m;
 }
 
-void SetProj(TJMatrix m)
+void SetProj(TJMatrix &m)
 {
 	proj = m;
 }
@@ -124,12 +90,12 @@ bool GetAutoBool()
 	return AutoAnimate;
 }
 
-void SetFrameNum(int setFrame)
+void SetFrameNum(int setFrame, int index)
 {
 	SetAutoBool(false);
-	animationFrameNum = setFrame;
+	animationFrameNum[index] = setFrame;
 }
-int GetFrameNum()
+std::vector<int> GetFrameNum()
 {
 	return animationFrameNum;
 }

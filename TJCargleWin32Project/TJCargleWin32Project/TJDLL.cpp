@@ -106,8 +106,10 @@ namespace TJDEV5LIB
 			{
 				FbxMesh * firstMesh = firstNode->GetMesh();
 				int vertextCount = firstMesh->GetControlPointsCount();
-
-				int polyCount = firstMesh->GetPolygonCount();
+				uint32_t indexCount = firstMesh->GetPolygonVertexCount();
+				uint32_t polygonCount = firstMesh->GetPolygonCount();
+				int polyVertCount = polygonCount * 3;
+				//int polyCount = firstMesh->GetPolygonCount();
 				FbxGeometryElement::EMappingMode normalMappingMode = FbxGeometryElement::eNone;
 				FbxGeometryElement::EMappingMode uvMappingMode = FbxGeometryElement::eNone;
 				bool mAllbyControlPoints = true;
@@ -116,6 +118,14 @@ namespace TJDEV5LIB
 				bool meshHasUV = firstMesh->GetElementUVCount() > 0 ? true : false;
 				if (meshHasNormal)
 				{
+					int someCOunt = firstMesh->GetElementNormalCount();
+					for (int l = 0; l < someCOunt; l++)
+					{
+						if (firstMesh->GetElementNormal(l)->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+						{
+							int yo = 0;
+						}
+					}
 					normalMappingMode = firstMesh->GetElementNormal(0)->GetMappingMode();
 					if (normalMappingMode == FbxGeometryElement::eNone)
 						meshHasNormal = false;
@@ -134,6 +144,9 @@ namespace TJDEV5LIB
 					if (meshHasUV && uvMappingMode == FbxGeometryElement::eByPolygonVertex)
 						mAllByPolygonVertex = true;
 				}
+
+
+
 				if (!mAllbyControlPoints)
 				{
 					vertextCount = vertextCount * 3; //3 because triangles
@@ -155,76 +168,114 @@ namespace TJDEV5LIB
 				{
 					uvElement = firstMesh->GetElementUV(0);
 				}
+				float * lUVs = NULL;
+				FbxStringList lUVNames;
+				firstMesh->GetUVSetNames(lUVNames);
+				const char * lUVName = NULL;
+				if (meshHasUV && lUVNames.GetCount())
+				{
+					lUVs = new float[polyVertCount * 2];
+					lUVName = lUVNames[0];
+				}
 				std::vector<TJVertex> tjVerts;
 				std::vector<VTriangle> tjTriangles;
-				returnMesh->vertexCount = firstMesh->GetPolygonVertexCount();
 
-				for (int ind = 0; ind < vertextCount; ind++)
+				//	std::vector<TJVertex> polyTjVerts;
+				//	std::vector<VTriangle> polyTjTriangles;
+
+				int ployIndexCounter = 0;
+				//if (mAllbyControlPoints)
 				{
-
-
-					// Save the vertex position.
-					//if (mAllbyControlPoints)
+					returnMesh->vertexCount = firstMesh->GetPolygonVertexCount();
+					for (int ind = 0; ind < vertextCount; ind++)
 					{
-						TJVertex tjCurrentVert;
-						currentVertex = firstMesh->GetControlPointAt(ind);
 
-						tjCurrentVert.pos.x = currentVertex.mData[0];
-						tjCurrentVert.pos.y = currentVertex.mData[1];
-						tjCurrentVert.pos.z = currentVertex.mData[2];
-						tjCurrentVert.pos.w = 1;//currentVertex.mData[3];
 
-						if (meshHasNormal)
+						// Save the vertex position.
+						//if (mAllbyControlPoints)
 						{
-							int normalIndex = ind;
-							if (normalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+							TJVertex tjCurrentVert;
+							currentVertex = firstMesh->GetControlPointAt(ind);
+
+							tjCurrentVert.pos.x = currentVertex.mData[0];
+							tjCurrentVert.pos.y = currentVertex.mData[1];
+							tjCurrentVert.pos.z = currentVertex.mData[2];
+							tjCurrentVert.pos.w = 1;//currentVertex.mData[3];
+
+							if (meshHasNormal)
 							{
-								normalIndex = normalElement->GetIndexArray().GetAt(ind);
+								int normalIndex = ind;
+								if (normalElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+								{
+									normalIndex = normalElement->GetIndexArray().GetAt(ind);
+								}
+								currentNormal = normalElement->GetDirectArray().GetAt(normalIndex);
+
+
+								tjCurrentVert.normal.x = static_cast<float>(currentNormal[0]);
+								tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
+								tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
 							}
-							currentNormal = normalElement->GetDirectArray().GetAt(normalIndex);
-
-
-							tjCurrentVert.normal.x = static_cast<float>(currentNormal[0]);
-							tjCurrentVert.normal.y = static_cast<float>(currentNormal[1]);
-							tjCurrentVert.normal.z = static_cast<float>(currentNormal[2]);
+							tjCurrentVert.u = 1;
+							tjCurrentVert.v = 1;
+							tjVerts.push_back(tjCurrentVert);
 						}
-						if (meshHasUV)
-						{
-							int UVIndex = ind;
-							if (uvElement->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-							{
-								UVIndex = uvElement->GetIndexArray().GetAt(ind);
-							}
-							currentUV = uvElement->GetDirectArray().GetAt(UVIndex);
 
-							tjCurrentVert.u = static_cast<float>(currentUV[0]);
-							tjCurrentVert.v = static_cast<float>(currentUV[1]);
-						}
-						tjVerts.push_back(tjCurrentVert);
 					}
 
+					for (int polyInd = 0; polyInd < polygonCount; polyInd++)
+					{
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 0));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 1));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 2));
+					}
 				}
+				int amountHit = 0;
+			 if (mAllByPolygonVertex)
+				{
+					returnMesh->vertexCount = polyVertCount;
+
+					for (int lPolygonIndex = 0; lPolygonIndex < polygonCount; ++lPolygonIndex)
+					{
+						for (int lVerticeIndex = 0; lVerticeIndex < 3; ++lVerticeIndex)
+						{
+					
+							if (meshHasUV)
+							{
+								int UVIndex = firstMesh->GetPolygonVertex(lPolygonIndex, lVerticeIndex);
+								bool mappedUV;
+								firstMesh->GetPolygonVertexUV(lPolygonIndex, lVerticeIndex, lUVName, currentUV, mappedUV);
+								
+								tjVerts[UVIndex].u =  static_cast<float>(currentUV[0]);
+								tjVerts[UVIndex].v = 1- static_cast<float>(currentUV[1]);
+								amountHit++;
+							}
+						
+						}
+					}
+					returnMesh->myVerts = tjVerts;
+					for (int i = 0; i < tjVerts.size(); i += 3)
+					{
+						VTriangle aTriangle;
+						aTriangle.a = tjVerts[i];
+						aTriangle.b = tjVerts[i + 1];
+						aTriangle.c = tjVerts[i + 2];
+						tjTriangles.push_back(aTriangle);
+					}
+					returnMesh->myTriangles.push_back(tjTriangles);
 
 
-				for (int i = 0; i < tjVerts.size(); i += 3)
-				{
-					VTriangle aTriangle;
-					aTriangle.a = tjVerts[i];
-					aTriangle.b = tjVerts[i + 1];
-					aTriangle.c = tjVerts[i + 2];
-					tjTriangles.push_back(aTriangle);
-				}
-				returnMesh->myTriangles.push_back(tjTriangles);
-				uint32_t indexCount = firstMesh->GetPolygonVertexCount();
-				uint32_t polygonCount = firstMesh->GetPolygonCount();
-				for (int i = 0; i < polygonCount; i++)
-				{
-					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 0));
-					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 1));
-					returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(i, 2));
+					for (int polyInd = 0; polyInd < polyVertCount; polyInd++)
+					{
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 0));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 1));
+						returnMesh->indexBuffer.push_back(firstMesh->GetPolygonVertex(polyInd, 2));
+					}
 				}
 			}
 
+
+			//Getting Bone Data
 			FbxNode * rootNode = nullptr;
 			for (int i = 0; i < itemCount; i++)
 			{
@@ -367,7 +418,7 @@ namespace TJDEV5LIB
 				aVert.pos = aPos;
 				tjVerts.push_back(aVert);
 
-				
+
 			}
 
 
@@ -380,6 +431,114 @@ namespace TJDEV5LIB
 
 			aCLip.frames.push_back(aFrame);
 			targetMesh->myClip = &aCLip;
+		}
+		return LoadSkinAnimationData(targetMesh);
+	}
+
+	Mesh * Functions::LoadSkinAnimationData(Mesh * targetMesh)
+	{
+		int scenePoseCount = myFbxScene->GetPoseCount();
+		FbxPose * thePose = nullptr;
+		for (int i = 0; i < scenePoseCount; i++)
+		{
+			if (myFbxScene->GetPose(i)->IsBindPose())
+			{
+				thePose = myFbxScene->GetPose(i);
+				break;
+			}
+		}
+		if (thePose == nullptr)
+		{
+			return targetMesh;
+		}
+
+		int itemCount = thePose->GetCount();
+		std::vector<Point> weightPoints;
+		if (thePose->GetNode(0))
+		{
+			FbxNode * firstNode = thePose->GetNode(0);
+			if (firstNode->GetMesh())
+			{
+				FbxMesh * firstMesh = firstNode->GetMesh();
+				int deformerCount = firstMesh->GetDeformerCount();
+				if (deformerCount > 0)
+				{
+					FbxDeformer * firstDeformer = nullptr;
+					for (int i = 0; i < deformerCount; i++)
+					{
+						if (firstMesh->GetDeformer(i))
+						{
+							FbxDeformer * testDeformer = firstMesh->GetDeformer(i);
+							if (testDeformer->GetDeformerType() == FbxDeformer::eSkin)
+							{
+								firstDeformer = testDeformer;
+								break;
+							}
+
+						}
+					}
+					if (firstDeformer)
+					{
+						FbxSkin * firstSkin = reinterpret_cast<FbxSkin*>(firstDeformer);
+						FbxCluster * firstCluster = nullptr;
+						int clusterCount = firstSkin->GetClusterCount();
+						int mycount = 0;
+						for (int i = 0; i < clusterCount; i++)
+						{
+							std::vector<TJVertex> tempVerts = targetMesh->myVerts;
+							std::vector<VTriangle> tempTriangles;
+							FbxCluster * aCluster = firstSkin->GetCluster(i);
+							FbxNode * linkedNode = aCluster->GetLink();
+							int linkedControlCount = aCluster->GetControlPointIndicesCount();
+							int * linkedpointArray = aCluster->GetControlPointIndices();
+							double * weightsArray = aCluster->GetControlPointWeights();
+							FbxNode * selectedNode = nullptr;
+
+							int index = -1;
+
+							for (int j = 0; j < targetMesh->fbxJoints.size(); j++)
+							{
+								if (linkedNode == targetMesh->fbxJoints[j]->node)
+								{
+									selectedNode = targetMesh->fbxJoints[j]->node;
+									index = j;
+									break;
+								}
+							}
+							if (selectedNode)
+							{
+								
+									for (int j = 0; j < linkedControlCount; j++)
+									{
+										
+										tempVerts[linkedpointArray[j]].pos.x += weightsArray[j];
+										tempVerts[linkedpointArray[j]].pos.y += weightsArray[j];
+										tempVerts[linkedpointArray[j]].pos.z += weightsArray[j];
+										//tempVerts[linkedpointArray[j]].pos.id2Affect = mycount;
+										mycount++;
+									}
+								
+
+
+							}
+							for (int i = 0; i < tempVerts.size(); i += 3)
+							{
+								VTriangle aTriangle;
+								aTriangle.a = tempVerts[i];
+								aTriangle.b = tempVerts[i + 1];
+								aTriangle.c = tempVerts[i + 2];
+								tempTriangles.push_back(aTriangle);
+							}
+							targetMesh->myTriangles.push_back(tempTriangles);
+
+
+						}
+					
+
+
+					}
+				}
+			}
 		}
 		return targetMesh;
 	}
